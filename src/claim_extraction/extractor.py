@@ -11,10 +11,10 @@ class ClaimExtractor:
         model_name = "Babelscape/t5-base-summarization-claim-extractor"
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-        
+
         print("ClaimExtractor initialized.")
 
-    def extract(self, text):
+    async def extract(self, text):
         print(f"Extracting claims from text: {text}")
         import torch
         

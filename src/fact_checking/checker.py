@@ -15,7 +15,7 @@ class FactChecker:
         self.config = config
         print("FactChecker initialized.")
 
-    def check_claims(self, claims):
+    async def check_claims(self, claims):
         # print(f"Fact-checking claims: {claims}")
         # Return a list of (claim, result) tuples
 

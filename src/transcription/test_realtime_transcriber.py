@@ -1,4 +1,4 @@
-from src.transcription.transcriber import Transcriber
+from transcriber import Transcriber
 
 if __name__ == "__main__":
     transcriber = Transcriber(model_name="base")  # You can use "tiny", "small", "medium", "large"

@@ -5,4 +5,8 @@
 git+https://github.com/openai/whisper.git
 sounddevice
 numpy
-torch 
+torch
+fastapi>=0.68.0
+uvicorn>=0.15.0
+python-multipart>=0.0.5
+websockets>=10.0 

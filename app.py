@@ -1,15 +1,17 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, BackgroundTasks
+from fastapi import FastAPI, WebSocket, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import json
-from typing import List, Dict
+from typing import AsyncGenerator
+import logging
 from src.transcription.transcriber import Transcriber
 from src.claim_extraction.extractor import ClaimExtractor
 from src.fact_checking.checker import FactChecker
 
-app = FastAPI()
+# Initialize FastAPI app
+app = FastAPI(title="Audio Processing Pipeline")
 
-# Enable CORS
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,76 +20,102 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize services
-transcriber = Transcriber()
+# Initialize components
+
 claim_extractor = ClaimExtractor()
 fact_checker = FactChecker()
+transcriber = Transcriber(claim_extractor, fact_checker)
 
-# Store active WebSocket connections
-active_connections: List[WebSocket] = []
-
-async def process_audio_chunk(audio_chunk: bytes) -> Dict:
-    """Process a single audio chunk through the pipeline."""
-    # 1. Transcribe audio chunk
-    transcription = await transcriber.transcribe_chunk(audio_chunk)
-    
-    # 2. Extract claims from transcription
-    claims = await claim_extractor.extract_claims(transcription)
-    
-    # 3. Fact check each claim
-    fact_check_results = []
-    for claim in claims:
-        result = await fact_checker.check_claim(claim)
-        fact_check_results.append({
-            "claim": claim,
-            "fact_check": result
-        })
-    
-    return {
-        "transcription": transcription,
-        "claims": claims,
-        "fact_check_results": fact_check_results
-    }
-
-@app.websocket("/ws")
+# WebSocket endpoint for real-time audio streaming
+@app.websocket("/ws/audio")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    active_connections.append(websocket)
-    
     try:
         while True:
-            # Receive audio chunk from client
-            audio_chunk = await websocket.receive_bytes()
+            # Receive audio data from client
+            audio_data = await websocket.receive_bytes()
             
-            # Process the audio chunk
-            results = await process_audio_chunk(audio_chunk)
-            
-            # Send results back to client
-            await websocket.send_json(results)
-            
-    except WebSocketDisconnect:
-        active_connections.remove(websocket)
+            # Process through pipeline
+            transcription = await process_audio(audio_data)
+            if transcription:
+                # Send transcription back to client
+                await websocket.send_text(json.dumps({
+                    "type": "transcription",
+                    "text": transcription
+                }))
+                
+                # Extract claims
+                claims = await extract_claims(transcription)
+                if claims:
+                    await websocket.send_text(json.dumps({
+                        "type": "claims",
+                        "claims": claims
+                    }))
+                    
+                    # Fact check claims
+                    fact_check_results = await fact_check(claims)
+                    if fact_check_results:
+                        await websocket.send_text(json.dumps({
+                            "type": "fact_check",
+                            "results": fact_check_results
+                        }))
     except Exception as e:
-        print(f"Error processing audio: {str(e)}")
+        logging.error(f"WebSocket error: {str(e)}")
+    finally:
         await websocket.close()
 
-@app.get("/")
-async def root():
-    return {
-        "message": "Welcome to the Audio Processing API",
-        "endpoints": {
-            "websocket": "/ws - WebSocket endpoint for real-time audio processing",
-            "health": "/health - Health check endpoint"
-        }
-    }
+# # File upload endpoint for audio files
+# @app.post("/upload/audio")
+# async def upload_audio(file: UploadFile = File(...)):
+#     try:
+#         contents = await file.read()
+#         # Process through pipeline
+#         transcription = await process_audio(contents)
+#         claims = await extract_claims(transcription) if transcription else None
+#         fact_check_results = await fact_check(claims) if claims else None
+        
+#         return {
+#             "transcription": transcription,
+#             "claims": claims,
+#             "fact_check_results": fact_check_results
+#         }
+#     except Exception as e:
+#         logging.error(f"File upload error: {str(e)}")
+#         return {"error": str(e)}
 
-@app.get("/health")
-async def health_check():
-    return {
-        "status": "healthy",
-        "services": {
-            "transcriber": "operational",
-            "claim_extractor": "operational",
-            "fact_checker": "operational"
-        }
-    } 
+async def process_audio(audio_data: bytes) -> str:
+    """Process audio data through the transcriber"""
+    try:
+
+        # TODO: transcription logic here
+        # This is where you'll use the transcriber component
+        # Use the existing transcriber instance
+        result = await transcriber.transcribe_realtime(duration=30)
+        return result
+    except Exception as e:
+        logging.error(f"Transcription error: {str(e)}")
+        return None
+
+async def extract_claims(transcription: str) -> list:
+    """Extract claims from transcription"""
+    try:
+        # TODO: claim extraction logic here
+        # This is where you'll use the claim_extractor component
+        return ["Sample claim"]  # Replace with actual claims
+    except Exception as e:
+        logging.error(f"Claim extraction error: {str(e)}")
+        return None
+
+async def fact_check(claims: list) -> list:
+    """Fact check the extracted claims"""
+    try:
+        # TODO: fact checking logic here
+        # This is where you'll use the fact_checker component
+        return [{"claim": claim, "result": "Sample result"} for claim in claims]
+    except Exception as e:
+        logging.error(f"Fact checking error: {str(e)}")
+        return None
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
