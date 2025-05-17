@@ -19,7 +19,7 @@ class ClaimExtractor:
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "You are a helpful assistant that extracts claims from text. List each claim on a new line starting with a hyphen."},
+                    {"role": "system", "content": "You are a helpful assistant that extracts *atomic* claims from text. List each atomic claim on a new line starting with a hyphen."},
                     {"role": "user", "content": f"Extract the key claims from this text: {text}"}
                 ],
                 temperature=0.0,
