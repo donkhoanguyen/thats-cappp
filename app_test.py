@@ -8,8 +8,8 @@ async def stream_audio():
     uri = "ws://localhost:8000/ws/audio"
     async with websockets.connect(uri) as websocket:
         # Simulate sending audio data (replace with your actual audio data)
-        # audio_data = b"your_audio_data_here"
-        # await websocket.send(audio_data)
+        audio_data = b"your_audio_data_here"
+        await websocket.send(audio_data)
         
         # Listen for responses
         while True:
