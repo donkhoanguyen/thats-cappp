@@ -24,6 +24,7 @@ class FactChecker:
         api_key = os.getenv('PERPLEXITY_API_KEY')
         url = "https://api.perplexity.ai/chat/completions"
 
+        results = []
         for claim in claims:
             # Prepare the API request
             headers = {
@@ -50,11 +51,11 @@ class FactChecker:
                     reply_text = result["choices"][0]["message"]["content"]
                     print(f"Claim: {claim}\n")
                     print("Response:", reply_text, "\n")
+                    results.append((claim, reply_text))
                 else:
                     print(f"Error: {response.status_code}")
                     print(response.text)
 
             except Exception as e:
                 print(f"An error occurred: {e}")
-        # return [(claim, "Verified (placeholder)") for claim in claims] 
-        # return results
+        return results

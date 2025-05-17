@@ -13,11 +13,11 @@ class ClaimExtractor:
             raise ValueError("OpenAI API key must be provided either directly or via OPENAI_API_KEY environment variable")
         self.client = OpenAI(api_key=self.api_key)
 
-    def extract_claims(self, text: str) -> List[str]:
+    async def extract_claims(self, text: str) -> List[str]:
         """Extract claims from the given text using OpenAI."""
         try:
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant that extracts claims from text. List each claim on a new line starting with a hyphen."},
                     {"role": "user", "content": f"Extract the key claims from this text: {text}"}
@@ -36,10 +36,10 @@ class ClaimExtractor:
             print(f"Error extracting claims: {str(e)}")
             return []
 
-    def batch_extract_claims(self, texts: List[str]) -> List[List[str]]:
+    async def batch_extract_claims(self, texts: List[str]) -> List[List[str]]:
         """Extract claims from multiple texts."""
         all_claims = []
         for text in texts:
-            claims = self.extract_claims(text)
+            claims = await self.extract_claims(text)
             all_claims.append(claims)
         return all_claims

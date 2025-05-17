@@ -5,7 +5,7 @@ import json
 from typing import AsyncGenerator
 import logging
 from src.transcription.transcriber import Transcriber
-from src.claim_extraction.t5_extractor import ClaimExtractor
+from src.claim_extraction.gpt_extractor import ClaimExtractor
 from src.fact_checking.checker import FactChecker
 
 # Initialize FastAPI app

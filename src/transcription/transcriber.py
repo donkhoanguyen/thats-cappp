@@ -3,7 +3,7 @@ import sounddevice as sd
 import numpy as np
 import time
 import asyncio
-from ..claim_extraction.t5_extractor import ClaimExtractor
+from ..claim_extraction.gpt_extractor import ClaimExtractor
 from ..fact_checking.checker import FactChecker
 from queue import Queue
 from threading import Thread
@@ -35,12 +35,27 @@ class Transcriber:
             'check': []
         }
 
-    async def transcribe_realtime(self, duration=30, samplerate=16000, device=None, output_markdown="transcription.md"):
+    async def transcribe_realtime(self, duration=30, recording_duration=35, samplerate=16000, device=None, output_markdown="transcription.md"):
         """
         Listen to the microphone in real time, using separate threads for recording and processing.
-        Ensures consistent 30-second recording intervals by using a timer-based approach.
+        Records overlapping audio chunks by recording for longer than the chunk interval.
+        
+        Args:
+            duration: Time in seconds between the start of consecutive recordings (default: 30s)
+            recording_duration: Length of each recording in seconds (default: 35s)
+            samplerate: Audio sample rate
+            device: Audio device to use
+            output_markdown: Output file path
         """
-        print(f"Setting up real-time transcription with {duration}s chunks...")
+        # For backward compatibility, use duration as chunk_interval
+        chunk_interval = duration
+        print(f"Setting up real-time transcription with {recording_duration}s recordings every {chunk_interval}s...")
+        if recording_duration <= chunk_interval:
+            print(f"Warning: Recording duration ({recording_duration}s) is not greater than chunk interval ({chunk_interval}s). No overlap will occur.")
+        else:
+            overlap = recording_duration - chunk_interval
+            print(f"Audio chunks will overlap by {overlap:.1f}s")
+            
         self.is_running = True
         start_time = time.time()
         self.queue_stats = {"max_size": 0, "current_size": 0}
@@ -60,9 +75,10 @@ class Transcriber:
         
         # Open output file
         self.output_file = open(output_markdown, "w")
-        self.output_file.write("# Real-Time Transcription\n\n")
-        self.output_file.write("| Start Time (s) | Transcription |\n")
-        self.output_file.write("|:--------------:|:--------------|\n")
+        self.output_file.write("# Real-Time Transcription with Overlapping Audio\n\n")
+        self.output_file.write(f"Recording {recording_duration}s chunks every {chunk_interval}s (overlap: {recording_duration - chunk_interval}s)\n\n")
+        self.output_file.write("| Start Time (s) | End Time (s) | Transcription |\n")
+        self.output_file.write("|:-------------:|:-------------:|:--------------|\n")
         self.output_file.flush()
         
         # Start the processing thread
@@ -71,10 +87,8 @@ class Transcriber:
         processing_thread.start()
         
         # Determine recording parameters
-        # Using a slightly shorter duration for recording to ensure we stay on schedule
-        actual_recording_duration = min(duration * 0.95, duration - 1.5)  # 95% of requested duration or 1.5s less
-        samples_to_record = int(actual_recording_duration * samplerate)
-        print(f"Actual recording duration per chunk: {actual_recording_duration:.2f}s ({samples_to_record} samples)")
+        samples_to_record = int(recording_duration * samplerate)
+        print(f"Each recording will capture {recording_duration:.2f}s ({samples_to_record} samples)")
         
         try:
             # Main recording loop with fixed timing
@@ -85,22 +99,59 @@ class Transcriber:
                 # Calculate timing for this chunk
                 current_time = time.time()
                 chunk_start = current_time - start_time
+                chunk_end = chunk_start + recording_duration
                 
                 # Update queue stats
                 self.queue_stats["current_size"] = self.audio_queue.qsize()
                 self.queue_stats["max_size"] = max(self.queue_stats["max_size"], self.queue_stats["current_size"])
                 
                 # Log status with queue information
-                print(f"Recording chunk {chunk_idx+1}, Start: {chunk_start:.2f}s (Queue size: {self.queue_stats['current_size']})")
+                print(f"Recording chunk {chunk_idx+1}, Start: {chunk_start:.2f}s, End: {chunk_end:.2f}s (Queue size: {self.queue_stats['current_size']})")
                 if self.queue_stats["current_size"] > 2:
                     print(f"WARNING: Processing is falling behind. Queue contains {self.queue_stats['current_size']} unprocessed chunks.")
                 
-                # Record audio for a fixed duration that's slightly shorter than the chunk interval
+                # Record audio for the full recording duration
                 recording_start = time.time()
                 audio = sd.rec(samples_to_record, samplerate=samplerate, 
                               channels=1, dtype='float32', device=device)
-                sd.wait()  # Wait for recording to complete
-                recording_time = time.time() - recording_start
+                
+                # Calculate when this recording should finish
+                recording_end_time = recording_start + recording_duration
+                
+                # Calculate when the next recording should start
+                next_start_time = next_start_time + chunk_interval
+                
+                # Determine if we need to stop recording early to start the next chunk
+                if next_start_time < recording_end_time:
+                    # We need to interrupt this recording to start the next one on time
+                    wait_time = next_start_time - time.time()
+                    if wait_time > 0:
+                        # Only wait until the next chunk should start
+                        print(f"Will start next recording in {wait_time:.2f}s (before current recording completes)")
+                        time.sleep(wait_time)
+                        # Force stop the current recording
+                        sd.stop()
+                        print(f"Recording stopped early after {time.time() - recording_start:.2f}s")
+                    else:
+                        # We're already behind schedule
+                        sd.stop()
+                        print(f"Recording stopped early, system is behind schedule by {-wait_time:.2f}s")
+                else:
+                    # We have enough time to finish this recording before starting the next one
+                    sd.wait()  # Wait for recording to complete
+                    recording_time = time.time() - recording_start
+                    print(f"Recording completed in {recording_time:.2f}s")
+                    
+                    # Sleep until it's time for the next chunk
+                    sleep_time = max(0, next_start_time - time.time())
+                    if sleep_time > 0:
+                        print(f"Waiting {sleep_time:.2f}s until next chunk")
+                        time.sleep(sleep_time)
+                    else:
+                        # We're behind schedule
+                        print(f"WARNING: System is {-sleep_time:.2f}s behind schedule. Adjusting timing.")
+                        # Reset the next start time to maintain consistent intervals
+                        next_start_time = time.time() + 0.5  # Small buffer before next recording
                 
                 # Process the audio
                 audio = np.squeeze(audio)
@@ -109,21 +160,9 @@ class Transcriber:
                 self.audio_queue.put({
                     'audio': audio,
                     'chunk_idx': chunk_idx,
-                    'start_time': chunk_start
+                    'start_time': chunk_start,
+                    'end_time': chunk_start + recording_time if 'recording_time' in locals() else chunk_start + recording_duration
                 })
-                
-                # Calculate the next start time and sleep until then
-                next_start_time = next_start_time + duration
-                sleep_time = max(0, next_start_time - time.time())
-                
-                print(f"Chunk {chunk_idx+1} recorded in {recording_time:.2f}s, waiting {sleep_time:.2f}s until next chunk")
-                if sleep_time > 0:
-                    time.sleep(sleep_time)  # Sleep until it's time for the next chunk
-                else:
-                    # We're behind schedule
-                    print(f"WARNING: System is {-sleep_time:.2f}s behind schedule. Adjusting timing.")
-                    # Reset the next start time to maintain consistent intervals
-                    next_start_time = time.time() + 0.5  # Small buffer before next recording
                 
                 chunk_idx += 1
                 
@@ -145,10 +184,17 @@ class Transcriber:
                 audio = item['audio']
                 chunk_idx = item['chunk_idx']
                 chunk_start = item['start_time']
+                chunk_end = item['end_time']
                 
                 try:
-                    # Transcribe the audio
+                    # Track when processing of this chunk started
+                    chunk_processing_start = time.time()
                     print(f"Processing chunk {chunk_idx+1}...")
+                    
+                    # Calculate time from recording to processing start
+                    queue_wait_time = chunk_processing_start - chunk_start
+                    if queue_wait_time > 10:  # Alert if queue delay is significant
+                        print(f"WARNING: Chunk waited in queue for {queue_wait_time:.2f}s")
                     
                     # Measure transcription time
                     transcribe_start = time.time()
@@ -161,7 +207,7 @@ class Transcriber:
                     print(f"Transcription for chunk {chunk_idx+1} completed in {transcribe_time:.2f}s: {transcription}")
                     
                     # Write to markdown file
-                    self.output_file.write(f"| {chunk_start:.2f} | {transcription} |\n")
+                    self.output_file.write(f"| {chunk_start:.2f} | {chunk_end:.2f} | {transcription} |\n")
                     self.output_file.flush()
                     
                     # Process with APIs
@@ -196,25 +242,30 @@ class Transcriber:
         print(f"Average transcription time: {avg_transcribe:.2f}s")
         print(f"Average claim extraction time: {avg_extract:.2f}s")
         print(f"Average fact checking time: {avg_check:.2f}s")
-        print(f"Total average processing time: {(avg_transcribe + avg_extract + avg_check):.2f}s")
+        print(f"Total average API processing time: {(avg_transcribe + avg_extract + avg_check):.2f}s")
         print(f"Current queue size: {self.audio_queue.qsize()} chunks")
         
         if HAVE_PSUTIL:
             print(f"CPU usage: {psutil.cpu_percent()}%")
             print(f"Memory usage: {psutil.virtual_memory().percent}%")
         
+        # Check if we're likely to fall behind
         if avg_transcribe + avg_extract + avg_check > 30:
-            print("WARNING: Average processing time exceeds recording interval (30s)")
+            print("\nWARNING: Average processing time exceeds recording interval!")
             print("The processing queue will continue to grow unless processing speeds up")
+            print("Consider using a faster model, reducing recording quality, or increasing chunk_interval")
         
         print("-------------------------\n")
     
     async def _process_api_calls(self, transcription, chunk_idx, chunk_start):
         """Process API calls for a transcribed chunk"""
         try:
+            # Track when processing started
+            processing_start_time = time.time()
+            
             # Extract claims
             extract_start = time.time()
-            claims = await self.extractor.extract(transcription)
+            claims = await self.extractor.extract_claims(transcription)
             extract_time = time.time() - extract_start
             self.processing_times['extract'].append(extract_time)
             
@@ -238,8 +289,15 @@ class Transcriber:
             # Write fact check results
             self.output_file.write(f"\nFact check results for chunk {chunk_idx+1}:\n")
             self.output_file.write(f"{fact_check_results}\n")
+            
+            # Calculate total processing time from the start of API processing
+            api_processing_time = time.time() - processing_start_time
+            
+            # Calculate complete processing time from when the chunk was recorded
             total_processing_time = time.time() - chunk_start
-            self.output_file.write(f"Total processing time: {total_processing_time:.2f}s\n\n")
+            
+            self.output_file.write(f"API processing time: {api_processing_time:.2f}s\n")
+            self.output_file.write(f"Total time from recording to completion: {total_processing_time:.2f}s\n\n")
             self.output_file.flush()
             
         except Exception as e:
