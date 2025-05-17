@@ -33,34 +33,45 @@ class Transcriber:
         print(f"Listening to microphone (device={device}) in {duration}s chunks...")
         start_time = time.time()
         chunk_idx = 0
-        # with open(output_markdown, "w") as f:
-        #     f.write("# Real-Time Transcription\n\n")
-        #     f.write("| Start Time (s) | Transcription |\n")
-        #     f.write("|:--------------:|:--------------|\n")
-        try:
-            while True:
-                chunk_start = time.time() - start_time
-                print(f"Speak now... (Chunk {chunk_idx+1}, Start: {chunk_start:.2f}s)")
-                audio = sd.rec(int(duration * samplerate), samplerate=samplerate, channels=1, dtype='float32', device=device)
-                sd.wait()
-                audio = np.squeeze(audio)
-                result = self.model.transcribe(audio, fp16=False)
-                transcription = result["text"].strip()
-                self.transcriptions.append(transcription)
-                print(f"Transcription: {transcription}")
+        with open(output_markdown, "w") as f:
+            f.write("# Real-Time Transcription\n\n")
+            f.write("| Start Time (s) | Transcription |\n")
+            f.write("|:--------------:|:--------------|\n")
+            
+            try:
+                while True:
+                    chunk_start = time.time() - start_time
+                    print(f"Speak now... (Chunk {chunk_idx+1}, Start: {chunk_start:.2f}s)")
+                    audio = sd.rec(int(duration * samplerate), samplerate=samplerate, channels=1, dtype='float32', device=device)
+                    sd.wait()
+                    audio = np.squeeze(audio)
+                    result = self.model.transcribe(audio, fp16=False)
+                    transcription = result["text"].strip()
+                    self.transcriptions.append(transcription)
+                    print(f"Transcription: {transcription}")
+                    f.write(f"| {chunk_start:.2f} | {transcription} |\n")
+                    f.flush()
 
-                # Extract claims
-                claims = await self.extractor.extract(transcription)
-                claims = claims[0].replace('.\n', '. ').split('. ')
-                print(f"Extracted claims: {claims}")
+                    # Extract claims
+                    claims = await self.extractor.extract(transcription)
+                    claims = claims[0].replace('.\n', '. ').split('. ')
+                    print(f"Extracted claims: {claims}")
+                    f.write(f"{claims}\n")
+                    f.flush()
 
-                # Fact check claims
-                fact_check_results = await self.checker.check_claims(claims)
-                print(f"Fact-checked claims: {fact_check_results}")
+                    # Fact check claims
+                    fact_check_results = await self.checker.check_claims(claims)
+                    print(f"Fact-checked claims: {fact_check_results}")
+                    f.write(f"{fact_check_results}\n")
+                    f.flush()
 
-                # Write to markdown file
-                # f.write(f"| {chunk_start:.2f} | {transcription} |\n")
-                # f.flush()
-                chunk_idx += 1
-        except KeyboardInterrupt:
-            print(f"Stopped real-time transcription. Output saved to {output_markdown}") 
+                    fact_processing_time = time.time() - chunk_start
+                    f.write(f"Fact processing time: {fact_processing_time:.2f}s\n")
+                    f.flush()
+
+                    # Write to markdown file
+                    # f.write(f"| {chunk_start:.2f} | {transcription} |\n")
+                    # f.flush()
+                    chunk_idx += 1
+            except KeyboardInterrupt:
+                print(f"Stopped real-time transcription. Output saved to {output_markdown}") 
