@@ -44,21 +44,21 @@ async def websocket_endpoint(websocket: WebSocket):
                     "text": transcription
                 }))
                 
-                # Extract claims
-                claims = await extract_claims(transcription)
-                if claims:
-                    await websocket.send_text(json.dumps({
-                        "type": "claims",
-                        "claims": claims
-                    }))
+                # # Extract claims
+                # claims = await extract_claims(transcription)
+                # if claims:
+                #     await websocket.send_text(json.dumps({
+                #         "type": "claims",
+                #         "claims": claims
+                #     }))
                     
-                    # Fact check claims
-                    fact_check_results = await fact_check(claims)
-                    if fact_check_results:
-                        await websocket.send_text(json.dumps({
-                            "type": "fact_check",
-                            "results": fact_check_results
-                        }))
+                #     # Fact check claims
+                #     fact_check_results = await fact_check(claims)
+                #     if fact_check_results:
+                #         await websocket.send_text(json.dumps({
+                #             "type": "fact_check",
+                #             "results": fact_check_results
+                #         }))
     except Exception as e:
         logging.error(f"WebSocket error: {str(e)}")
     finally:
