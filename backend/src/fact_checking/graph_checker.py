@@ -45,7 +45,7 @@ Respond with only the label: factual, opinion, or unverifiable.
     }
 
 # from ..src.fact_checking.checker import FactChecker
-from src.fact_checking.fact_checker import FactChecker
+from fact_checker import FactChecker
 
 # Fact checker using pplx
 def fact_checker_node(state: VerificationAgentState) -> Dict:
