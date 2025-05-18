@@ -1,4 +1,4 @@
-from checker import FactChecker
+from src.fact_checking.fact_checker import FactChecker
 
 # Create an instance of the FactChecker class
 checker = FactChecker()

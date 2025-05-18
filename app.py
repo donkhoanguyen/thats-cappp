@@ -6,7 +6,7 @@ from typing import AsyncGenerator
 import logging
 from src.transcription.transcriber import Transcriber
 from src.claim_extraction.gpt_extractor import ClaimExtractor
-from src.fact_checking.checker import FactChecker
+from src.fact_checking.fact_checker import FactChecker
 
 # Initialize FastAPI app
 app = FastAPI(title="Audio Processing Pipeline")

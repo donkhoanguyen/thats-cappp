@@ -1,1 +1,0 @@
-THINK ABOUT USING sonar-small-chat INSTEAD OF GPT-4o-mini and sonar-pro for fact-checks

@@ -4,7 +4,7 @@ import numpy as np
 import time
 import asyncio
 from ..claim_extraction.gpt_extractor import ClaimExtractor
-from ..fact_checking.checker import FactChecker
+from ..fact_checking.fact_checker import FactChecker
 from queue import Queue
 from threading import Thread
 
@@ -35,7 +35,7 @@ class Transcriber:
             'check': []
         }
 
-    async def transcribe_realtime(self, duration=30, recording_duration=35, samplerate=16000, device=None, output_markdown="transcription.md"):
+    async def transcribe_realtime(self, duration=30, recording_duration=40, samplerate=16000, device=None, output_markdown="transcription.md"):
         """
         Listen to the microphone in real time, using separate threads for recording and processing.
         Records overlapping audio chunks by recording for longer than the chunk interval.
