@@ -273,21 +273,30 @@ class Transcriber:
             
             # Write claims to file
             self.output_file.write(f"\nClaims from chunk {chunk_idx+1} ({chunk_start:.2f}s):\n")
+            check_start = time.time()
             for claim in claims:
                 self.output_file.write(f"- {claim}\n")
-            self.output_file.flush()
-            
-            # Fact check claims using the graph
-            check_start = time.time()
-            fact_check_results = await self.graph.ainvoke(claims)
+                self.output_file.flush()
+
+                # here change claims into inputs for langgraph graph checker
+                inputs = {
+                    "claim": claim
+                }
+                
+
+                # Fact check claims using the graph
+                
+                fact_check_results = await self.checker.ainvoke(inputs)
+                self.output_file.write(f"{fact_check_results}\n")
+
             check_time = time.time() - check_start
             self.processing_times['check'].append(check_time)
             
             print(f"Fact-checked claims from chunk {chunk_idx+1} in {check_time:.2f}s")
             
-            # Write fact check results
-            self.output_file.write(f"\nFact check results for chunk {chunk_idx+1}:\n")
-            self.output_file.write(f"{fact_check_results}\n")
+            # # Write fact check results
+            # self.output_file.write(f"\nFact check results for chunk {chunk_idx+1}:\n")
+            
             
             # Calculate total processing time from the start of API processing
             api_processing_time = time.time() - processing_start_time

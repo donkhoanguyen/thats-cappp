@@ -44,21 +44,6 @@ async def websocket_endpoint(websocket: WebSocket):
                     "text": transcription
                 }))
                 
-                # # Extract claims
-                # claims = await extract_claims(transcription)
-                # if claims:
-                #     await websocket.send_text(json.dumps({
-                #         "type": "claims",
-                #         "claims": claims
-                #     }))
-                    
-                #     # Fact check claims
-                #     fact_check_results = await fact_check(claims)
-                #     if fact_check_results:
-                #         await websocket.send_text(json.dumps({
-                #             "type": "fact_check",
-                #             "results": fact_check_results
-                #         }))
     except Exception as e:
         logging.error(f"WebSocket error: {str(e)}")
     finally:
@@ -86,35 +71,12 @@ async def websocket_endpoint(websocket: WebSocket):
 async def process_audio(audio_data: bytes) -> str:
     """Process audio data through the transcriber"""
     try:
-
-        # TODO: transcription logic here
-        # This is where you'll use the transcriber component
         # Use the existing transcriber instance
         result = await transcriber.transcribe_realtime(duration=30)
         return result
     except Exception as e:
         logging.error(f"Transcription error: {str(e)}")
         return None
-
-# async def extract_claims(transcription: str) -> list:
-#     """Extract claims from transcription"""
-#     try:
-#         # TODO: claim extraction logic here
-#         # This is where you'll use the claim_extractor component
-#         return ["Sample claim"]  # Replace with actual claims
-#     except Exception as e:
-#         logging.error(f"Claim extraction error: {str(e)}")
-#         return None
-
-# async def fact_check(claims: list) -> list:
-#     """Fact check the extracted claims"""
-#     try:
-#         # TODO: fact checking logic here
-#         # This is where you'll use the fact_checker component
-#         return [{"claim": claim, "result": "Sample result"} for claim in claims]
-#     except Exception as e:
-#         logging.error(f"Fact checking error: {str(e)}")
-#         return None
 
 if __name__ == "__main__":
     import uvicorn

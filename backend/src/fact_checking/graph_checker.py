@@ -55,7 +55,8 @@ Respond with only the label: factual, opinion, or unverifiable.
     }
 
 # from ..src.fact_checking.checker import FactChecker
-from fact_checker import FactChecker
+# from fact_checker import FactChecker
+from ..fact_checking.fact_checker import FactChecker
 
 async def fact_checker_node(state: VerificationAgentState) -> Dict:
     checker = FactChecker()
