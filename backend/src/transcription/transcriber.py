@@ -4,7 +4,7 @@ import numpy as np
 import time
 import asyncio
 from ..claim_extraction.gpt_extractor import ClaimExtractor
-from ..fact_checking.fact_checker import FactChecker
+from ..fact_checking.graph_checker import graph
 from queue import Queue
 from threading import Thread
 
@@ -16,12 +16,11 @@ except ImportError:
     HAVE_PSUTIL = False
 
 class Transcriber:
-    def __init__(self, extractor:ClaimExtractor, checker:FactChecker,
-                 config=None, model_name="base",):
+    def __init__(self, extractor:ClaimExtractor, config=None, model_name="base",):
         self.config = config
         self.model = whisper.load_model(model_name)
         self.extractor = extractor
-        self.checker = checker
+        self.checker = graph
         print("Transcriber initialized.")
         print(f"Loading Whisper model: {model_name}")
         self.transcriptions = []
@@ -278,9 +277,9 @@ class Transcriber:
                 self.output_file.write(f"- {claim}\n")
             self.output_file.flush()
             
-            # Fact check claims
+            # Fact check claims using the graph
             check_start = time.time()
-            fact_check_results = await self.checker.check_claims(claims)
+            fact_check_results = await self.graph.ainvoke(claims)
             check_time = time.time() - check_start
             self.processing_times['check'].append(check_time)
             
