@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 import requests
 import json
-from fastapi import APIRouter
+# from fastapi import APIRouter
 from pydantic import BaseModel
 import httpx
 

@@ -1,11 +1,17 @@
 import os
-from typing import Dict, TypedDict, Annotated, Sequence, List, Optional
 
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, BaseMessage
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langgraph.graph import StateGraph, END
+
+from langchain_core.callbacks import BaseCallbackHandler
+from langchain_core.callbacks.base import BaseCallbackManager
+
+from typing import Dict, TypedDict, Annotated, Sequence, List, Optional, Any, Union
+
+Callbacks = Optional[Union[List[BaseCallbackHandler], BaseCallbackManager]]
 
 from dotenv import load_dotenv
 load_dotenv()
