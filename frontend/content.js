@@ -165,15 +165,38 @@ if (!document.getElementById('ccf-floating-btn')) {
       fetch(chrome.runtime.getURL('sidepanel.html'))
         .then(response => response.text())
         .then(html => {
-          panel.innerHTML = html;
-          document.body.appendChild(panel);
+          // Create a temporary container to parse the HTML
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = html;
           
-          // Add open class after a small delay to trigger animation
-          setTimeout(() => {
-            panel.classList.add('open');
-            // Move button with panel
-            btn.style.right = '340px';
-          }, 50);
+          // Get the panel content
+          const panelContent = tempDiv.querySelector('.panel-container');
+          if (panelContent) {
+            panel.innerHTML = panelContent.innerHTML;
+            document.body.appendChild(panel);
+            
+            // Add click handler for close button
+            const closeButton = panel.querySelector('.close-button');
+            if (closeButton) {
+              closeButton.onclick = () => {
+                panel.classList.remove('open');
+                btn.style.right = '0';
+                btn.style.opacity = '1';
+                btn.style.visibility = 'visible';
+              };
+            }
+            
+            // Add open class after a small delay to trigger animation
+            setTimeout(() => {
+              panel.classList.add('open');
+              // Hide the floating button
+              btn.style.opacity = '0';
+              btn.style.visibility = 'hidden';
+            }, 50);
+          }
+        })
+        .catch(error => {
+          console.error('Error loading side panel:', error);
         });
     } else {
       const panel = document.getElementById('ccf-side-panel');
@@ -181,10 +204,13 @@ if (!document.getElementById('ccf-floating-btn')) {
         // Close panel
         panel.classList.remove('open');
         btn.style.right = '0';
+        btn.style.opacity = '1';
+        btn.style.visibility = 'visible';
       } else {
         // Open panel
         panel.classList.add('open');
-        btn.style.right = '340px';
+        btn.style.opacity = '0';
+        btn.style.visibility = 'hidden';
       }
     }
   }

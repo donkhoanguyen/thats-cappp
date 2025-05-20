@@ -9,8 +9,9 @@
   position: fixed;
   right: -340px; /* Start off-screen */
   top: 0;
-  z-index: 9999;
+  z-index: 2147483647; /* Highest possible z-index */
   transition: transform 0.3s ease-in-out;
+  overflow-y: auto;
 }
 
 .panel-container.open {
@@ -20,9 +21,18 @@
 .panel-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   padding: 18px 20px;
   border-bottom: 1px solid #f0f0f0;
   background: rgba(249, 250, 251, 0.95);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.panel-header-left {
+  display: flex;
+  align-items: center;
 }
 
 .panel-logo {
@@ -199,4 +209,26 @@
   flex: 1;
   padding: 20px;
   overflow-y: auto;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  margin-left: 10px;
+}
+
+.close-button:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #333;
 }
