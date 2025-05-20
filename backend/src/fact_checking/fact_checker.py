@@ -31,7 +31,7 @@ class FactChecker:
         }
         
         data = {
-            "model": "sonar",
+            "model": "sonar-pro",
             "messages": [
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": f"Verify this {claim} using web search. Answer as either True or False"},

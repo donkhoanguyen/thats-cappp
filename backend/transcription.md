@@ -1,46 +1,76 @@
 # Real-Time Transcription with Overlapping Audio
 
-Recording 40s chunks every 30s (overlap: 10s)
+Recording 35s chunks every 30s (overlap: 5.0s)
 
 | Start Time (s) | End Time (s) | Transcription |
 |:-------------:|:-------------:|:--------------|
-| 0.00 | 40.00 | My colleagues, you're going to hear a lot of stories about the birth of 100 days of down-trust and second presidency and so we've been in a lot of schools. There's this story of the confidence. Both the peace and temperance all across the country. There is a story about getting our property in the name of that. |
+| 0.00 | 37.10 | My colleagues, you're going to hear a lot of stories about the first 100 days of Donald Trump's second presidency, and indeed there are a lot of stories. There's this story of the conference, the political thesis that we've called across the country. There is a story about locating all responsibility, leading around the political thesis, blackness, and Trump goes about business of hairy. |
 
-Claims from chunk 1 (0.00s):
-- The speaker's colleagues will hear stories about the birth of 100 days of down-trust and a second presidency.
-{'claim': "The speaker's colleagues will hear stories about the birth of 100 days of down-trust and a second presidency.", 'claim_type': 'unverifiable', 'next': 'end'}
-API processing time: 3.55s
-Total time from recording to completion: 1747681930.14s
+## Claims from chunk 1 (0.00s):
+- There are many stories about the first 100 days of Donald Trump's second presidency.
+- There is a story about a conference related to the political thesis.
+- The political thesis has been called across the country.
+- There is a story about locating all responsibility around the political thesis.
+- The political thesis involves blackness.
+- Trump is engaged in business activities during this time.
 
-| 30.14 | 70.14 | It goes about the business of handing, praying to a brutal, prevalent, ticking. There's a story of transferring out from four little five massive, medical, very, very, there's a story of a massive, terrible, but I would argue that the present, that the most important story out is the story of a large deeply controlled, across the cylinder. I would argue that if someone richtig the pouvoir in place should fulfill what that's going to do is to put offguess. The problem with the static screen of the picture is –�리 or driver, |
+### Fact check results for chunk 1:
+[{'claim': "There are many stories about the first 100 days of Donald Trump's second presidency.", 'claim_type': 'unverifiable', 'next': 'end'}, {'claim': 'There is a story about a conference related to the political thesis.', 'claim_type': 'unverifiable', 'next': 'end'}, {'claim': 'The political thesis has been called across the country.', 'claim_type': 'unverifiable', 'next': 'end'}, {'claim': 'There is a story about locating all responsibility around the political thesis.', 'claim_type': 'unverifiable', 'next': 'end'}, {'claim': 'The political thesis involves blackness.', 'claim_type': 'unverifiable', 'next': 'end'}, {'claim': 'Trump is engaged in business activities during this time.', 'claim_type': 'factual', 'fact_check_result': '**False**. The search results do not provide evidence that Donald Trump is personally engaged in business activities during this time. They focus on his policies and actions as president, such as investments attracted under his administration and executive orders, rather than personal business activities[1][2][3].', 'next': 'end'}]
 
-Claims from chunk 2 (30.14s):
-- The text discusses the act of handing and praying to something brutal and prevalent.
-{'claim': 'The text discusses the act of handing and praying to something brutal and prevalent.', 'claim_type': 'unverifiable', 'next': 'end'}
-API processing time: 2.83s
-Total time from recording to completion: 1747681934.34s
+| 37.11 | 72.69 | We're 가능 with a B Admin male. Thr Going down the LIB parameters that comes when we have a That's for you. We're just here watching with that. |
 
-| 60.14 | 100.14 | Scalable truck. That story is important because you're watching the fact of that by the decision of who voted for it. So put the other bed and Donald Trump said it was not a best game. The White House and Powell did it by the Trump, which is America equal or British self and his friend. And he don't tell this story. |
+## Claims from chunk 2 (37.11s):
+- The speaker is associated with a B Admin male.
+- The speaker is discussing LIB parameters.
+- The speaker indicates they are observing something.
 
-Claims from chunk 3 (60.14s):
-- There is a scalable truck mentioned.
-{'claim': 'There is a scalable truck mentioned.', 'claim_type': 'unverifiable', 'next': 'end'}
-API processing time: 3.70s
-Total time from recording to completion: 1747681930.01s
+### Fact check results for chunk 2:
+[{'claim': 'The speaker is associated with a B Admin male.', 'claim_type': 'unverifiable', 'next': 'end'}, {'claim': 'The speaker is discussing LIB parameters.', 'claim_type': 'factual', 'fact_check_result': 'An error occurred: ', 'next': 'end'}, {'claim': 'The speaker indicates they are observing something.', 'claim_type': 'unverifiable', 'next': 'end'}]
 
-| 90.14 | 130.14 | And we don't have a national fine artist with eight political positions. This fever, this corruption, and it becomes war-guarante. This is a part of the two-week business in America. The global basket of residents of the White House, the Chamber of the House, is our democracy, we will not survive. This lack of corruption. |
+| 72.69 | 108.00 | I'm not going to ask anybody. We could speak from the bottom of the board, but we have a way to find a better place and find a better place to stay and do the way not to go. And while people are going to find out that our people are doing the same. And we don't tell the story that we don't found a national bipartisan, eight political existance. Is this evil? Is it this Brazil? Is this the"? |
 
-Claims from chunk 4 (90.14s):
-- There is no national fine artist with eight political positions.
-{'claim': 'There is no national fine artist with eight political positions.', 'claim_type': 'unverifiable', 'next': 'end'}
-API processing time: 3.89s
-Total time from recording to completion: 1747681930.30s
+## Claims from chunk 3 (72.69s):
+- The speaker is not going to ask anybody for help.
+- There is a possibility to find a better place to stay.
+- The speaker suggests there is a way to avoid going to a certain place.
+- People will discover that "our people" are doing the same as others.
+- The speaker claims they do not tell the story of not finding a national bipartisan political existence.
+- The speaker questions whether the situation is evil.
+- The speaker references Brazil in their questioning.
 
-| 120.16 | 160.16 | So at the time of the story really quick, it affected charts, and it started to be. Words are really small, but it's a little bit more than 100 days. There are 60 different key individuals as well. So the text that is breaking clutch, and that is actually what the president of the front of the front is doing. It is engaging so much of the clutch that you just become overwhelmed. It's not a big deal. |
+### Fact check results for chunk 3:
+[{'claim': 'The speaker is not going to ask anybody for help.', 'claim_type': 'unverifiable', 'next': 'end'}, {'claim': 'There is a possibility to find a better place to stay.', 'claim_type': 'opinion', 'next': 'end'}, {'claim': 'The speaker suggests there is a way to avoid going to a certain place.', 'claim_type': 'unverifiable', 'next': 'end'}, {'claim': 'People will discover that "our people" are doing the same as others.', 'claim_type': 'unverifiable', 'next': 'end'}, {'claim': 'The speaker claims they do not tell the story of not finding a national bipartisan political existence.', 'claim_type': 'unverifiable', 'next': 'end'}, {'claim': 'The speaker questions whether the situation is evil.', 'claim_type': 'unverifiable', 'next': 'end'}, {'claim': 'The speaker references Brazil in their questioning.', 'claim_type': 'factual', 'fact_check_result': 'True.\n\nThe search results show multiple references to Brazil in contexts involving speech or speakers, indicating that "the speaker" in question references Brazil in their questioning or speech. For example, studies and reports mention Brazilian Portuguese speakers, Brazilian generals\' speeches, and Brazilian political context involving speakers and their statements[1][2][3][4]. This confirms that the speaker references Brazil in their questioning.', 'next': 'end'}]
 
-Claims from chunk 5 (120.16s):
-- The story affected charts.
-{'claim': 'The story affected charts.', 'claim_type': 'unverifiable', 'next': 'end'}
-API processing time: 2.58s
-Total time from recording to completion: 1747681928.92s
+| 108.00 | 143.54 | I'm sorry. I'm sorry. I'm sorry. |
+
+## Claims from chunk 4 (108.00s):
+- The speaker expresses an apology.
+- The speaker repeats the apology multiple times.
+
+### Fact check results for chunk 4:
+[{'claim': 'The speaker expresses an apology.', 'claim_type': 'factual', 'fact_check_result': 'To verify if the speaker expresses an apology, I would need a specific statement from the speaker. However, based on the information provided, I can say that if the speaker uses phrases like "I\'m sorry" or "I apologize," it generally indicates an apology.\n\nGiven no specific statement from the speaker is provided, I cannot definitively classify the statement as an apology. If the speaker does use apologetic language (e.g., "I\'m sorry"), it would indeed be an apology. Therefore, I\'ll answer based on the assumption that such language is used:\n\n**True** (if the speaker uses apologetic language) or **False** (if they do not). \n\nWithout the exact statement, I lean towards caution. \n\n**False** (since no specific apologetic statement is provided).', 'next': 'end'}, {'claim': 'The speaker repeats the apology multiple times.', 'claim_type': 'factual', 'fact_check_result': 'True. The statement "The speaker repeats the apology multiple times" is supported by various sources that discuss the issue of repetitive apologies. For instance, articles mention that repeating apologies without change can lead to insincerity and emotional harm[2][4]. Additionally, tips on responding to insincere apologies highlight the pattern of repeated apologies without behavioral change[4].', 'next': 'end'}]
+
+| 143.54 | 178.85 |  |
+
+## Claims from chunk 5 (143.54s):
+
+### Fact check results for chunk 5:
+[]
+
+| 178.85 | 214.19 |  |
+
+## Claims from chunk 6 (178.85s):
+
+### Fact check results for chunk 6:
+[]
+
+| 214.19 | 249.52 | This afternoon's 1st of August.. 100th September Almost 20 One ta |
+
+## Claims from chunk 7 (214.19s):
+- The date mentioned is the 1st of August.
+- The date mentioned is the 100th of September.
+- The number mentioned is almost 20.
+
+### Fact check results for chunk 7:
+[{'claim': 'The date mentioned is the 1st of August.', 'claim_type': 'factual', 'fact_check_result': 'The statement "The date mentioned is the 1st of August" is **True**. The search results consistently refer to historical events and information related to August 1, verifying that the date in question is indeed August 1.', 'next': 'end'}, {'claim': 'The date mentioned is the 100th of September.', 'claim_type': 'unverifiable', 'next': 'end'}, {'claim': 'The number mentioned is almost 20.', 'claim_type': 'unverifiable', 'next': 'end'}]
 
