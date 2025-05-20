@@ -194,7 +194,6 @@ class Transcriber:
                     'chunk_idx': chunk_idx,
                     'start_time': chunk_start,
                     'end_time': chunk_start + recording_time
-                    'end_time': chunk_start + recording_time
                 })
 
 
@@ -212,10 +211,7 @@ class Transcriber:
 
     async def _process_audio_queue(self):
         """Processes audio chunks from the queue."""
-        """Processes audio chunks from the queue."""
         while self.is_running or not self.audio_queue.empty():
-            try:
-                item = self.audio_queue.get(timeout=0.1) # Non-blocking get with a timeout
             try:
                 item = self.audio_queue.get(timeout=0.1) # Non-blocking get with a timeout
                 audio = item['audio']
@@ -284,8 +280,6 @@ class Transcriber:
     def _report_performance(self):
         """Reports on performance metrics."""
         if not self.processor.processing_times['transcribe']:
-        """Reports on performance metrics."""
-        if not self.processor.processing_times['transcribe']:
             return
 
         avg_transcribe = sum(self.processor.processing_times['transcribe']) / len(self.processor.processing_times['transcribe'])
@@ -319,42 +313,6 @@ class Transcriber:
             print("Consider using a faster model, reducing recording quality, or increasing chunk_interval.")
 
         print("-------------------------\n")
-
-    def _print_system_info(self):
-        """Prints system information if psutil is available."""
-        import os
-        try:
-            import psutil
-            cpu_count = os.cpu_count()
-            memory = psutil.virtual_memory()
-            print(f"System info: {cpu_count} CPU cores, {memory.total / (1024**3):.1f} GB RAM")
-            print(f"Current CPU usage: {psutil.cpu_percent()}%")
-        except ImportError:
-            print("Could not retrieve detailed system info. Consider installing psutil with: pip install psutil")
-
-    def _write_markdown_header(self, recording_duration: float, chunk_interval: float, overlap: float):
-        """Writes the markdown header to the output file."""
-        self.output_file.write("# Real-Time Transcription with Overlapping Audio\n\n")
-        self.output_file.write(f"Recording {recording_duration}s chunks every {chunk_interval}s (overlap: {overlap:.1f}s)\n\n")
-        self.output_file.write("| Start Time (s) | End Time (s) | Transcription |\n")
-        self.output_file.write("|:-------------:|:-------------:|:--------------|\n")
-        self.output_file.flush()
-
-    def _write_transcription_to_markdown(self, start_time: float, end_time: float, transcription: str):
-        """Writes a single transcription to the markdown file."""
-        self.output_file.write(f"| {start_time:.2f} | {end_time:.2f} | {transcription} |\n")
-        self.output_file.flush()
-
-    def _write_claims_and_results_to_markdown(self, chunk_idx: int, chunk_start: float, claims: List[str], fact_check_results: Any):
-        """Writes extracted claims and fact-checking results to the markdown file."""
-        self.output_file.write(f"\n## Claims from chunk {chunk_idx+1} ({chunk_start:.2f}s):\n")
-        for claim in claims:
-            self.output_file.write(f"- {claim}\n")
-        self.output_file.write(f"\n### Fact check results for chunk {chunk_idx+1}:\n")
-        self.output_file.write(f"{fact_check_results}\n\n")
-        self.output_file.flush()
-
-from queue import Empty # Import here to avoid circular dependency issues
 
     def _print_system_info(self):
         """Prints system information if psutil is available."""
