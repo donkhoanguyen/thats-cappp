@@ -58,6 +58,6 @@ class FactChecker:
                 return error_msg
 
         except Exception as e:
-            error_msg = f"An error occurred: {e}"
+            error_msg = f"An error occurred: {e} here is at calling perplexity api"
             print(error_msg)
             return error_msg
