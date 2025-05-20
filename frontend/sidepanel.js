@@ -13,11 +13,9 @@ const mockConcepts = [
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Listen for messages from the content script
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === 'open_side_panel' && message.content) {
-      displayContent(message.content);
-    }
+  // Listen for content update events
+  document.addEventListener('updateContent', (event) => {
+    displayContent(event.detail);
   });
 
   // Set page info (mock)
