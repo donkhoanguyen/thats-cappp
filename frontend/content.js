@@ -6,7 +6,7 @@ if (!document.getElementById('ccf-floating-btn')) {
   btn.style.top = '50%';
   btn.style.right = '0';
   btn.style.transform = 'translateY(-50%)';
-  btn.style.background = '#fff';
+  btn.style.background = 'rgba(255, 255, 255, 0.95)';
   btn.style.border = 'none';
   btn.style.borderRadius = '14px 0 0 14px';
   btn.style.padding = '0';
@@ -19,7 +19,7 @@ if (!document.getElementById('ccf-floating-btn')) {
   btn.style.alignItems = 'center';
   btn.style.justifyContent = 'center';
   btn.style.userSelect = 'none';
-  btn.style.transition = 'width 0.2s ease';
+  btn.style.transition = 'all 0.3s ease-in-out';
   btn.style.overflow = 'hidden';
 
   // Create dotted pattern container
@@ -154,23 +154,59 @@ if (!document.getElementById('ccf-floating-btn')) {
     return null;
   }
 
+  // Add this function to inject the side panel
+  function injectSidePanel() {
+    if (!document.getElementById('ccf-side-panel')) {
+      const panel = document.createElement('div');
+      panel.id = 'ccf-side-panel';
+      panel.className = 'panel-container';
+      
+      // Load the side panel content
+      fetch(chrome.runtime.getURL('sidepanel.html'))
+        .then(response => response.text())
+        .then(html => {
+          panel.innerHTML = html;
+          document.body.appendChild(panel);
+          
+          // Add open class after a small delay to trigger animation
+          setTimeout(() => {
+            panel.classList.add('open');
+            // Move button with panel
+            btn.style.right = '340px';
+          }, 50);
+        });
+    } else {
+      const panel = document.getElementById('ccf-side-panel');
+      if (panel.classList.contains('open')) {
+        // Close panel
+        panel.classList.remove('open');
+        btn.style.right = '0';
+      } else {
+        // Open panel
+        panel.classList.add('open');
+        btn.style.right = '340px';
+      }
+    }
+  }
+
   // Modify the click handler
   btn.onclick = async (e) => {
     // Only trigger click if we're in the main button area (first 50px)
     const rect = btn.getBoundingClientRect();
     if (e.clientX <= rect.left + 50 && !hasDragged) {
       try {
-        // First open the side panel
-        chrome.runtime.sendMessage({ action: 'open_side_panel' });
+        // Inject the side panel
+        injectSidePanel();
         
         // Then try to get the content
         const content = await extractPageContent();
         if (content) {
           // Send the extracted content to your side panel
-          chrome.runtime.sendMessage({ 
-            action: 'open_side_panel',
-            content: content
-          });
+          const sidePanel = document.getElementById('ccf-side-panel');
+          if (sidePanel) {
+            const event = new CustomEvent('updateContent', { detail: content });
+            sidePanel.dispatchEvent(event);
+          }
         }
       } catch (error) {
         console.error('Error:', error);

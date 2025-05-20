@@ -4,7 +4,6 @@
   "version": "0.1",
   "description": "Finds and lists key concepts from the current page in a side panel.",
   "permissions": [
-    "sidePanel",
     "scripting",
     "activeTab"
   ],
@@ -14,12 +13,10 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js"]
+      "js": ["content.js"],
+      "css": ["sidepanel.css"]
     }
   ],
-  "side_panel": {
-    "default_path": "sidepanel.html"
-  },
   "icons": {
     "16": "icons/pplx_logo.png",
     "48": "icons/pplx_logo.png",
@@ -30,7 +27,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["icons/pplx_logo.png"],
+      "resources": ["icons/pplx_logo.png", "sidepanel.html"],
       "matches": ["<all_urls>"]
     }
   ]

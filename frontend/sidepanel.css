@@ -1,11 +1,20 @@
 .panel-container {
   font-family: 'Segoe UI', Arial, sans-serif;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.95);
   width: 340px;
   height: 100vh;
   display: flex;
   flex-direction: column;
   box-shadow: -2px 0 8px rgba(0,0,0,0.07);
+  position: fixed;
+  right: -340px; /* Start off-screen */
+  top: 0;
+  z-index: 9999;
+  transition: transform 0.3s ease-in-out;
+}
+
+.panel-container.open {
+  transform: translateX(-340px);
 }
 
 .panel-header {
@@ -13,7 +22,7 @@
   align-items: center;
   padding: 18px 20px;
   border-bottom: 1px solid #f0f0f0;
-  background: #f9fafb;
+  background: rgba(249, 250, 251, 0.95);
 }
 
 .panel-logo {
@@ -86,7 +95,7 @@
 .panel-footer {
   padding: 12px 20px;
   border-top: 1px solid #f0f0f0;
-  background: #f9fafb;
+  background: rgba(249, 250, 251, 0.95);
   font-size: 0.95em;
   color: #888;
   text-align: right;
