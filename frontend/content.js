@@ -215,28 +215,170 @@ if (!document.getElementById('ccf-floating-btn')) {
     }
   }
 
+  // Add this function to create and show the popup
+  function showPopup(btn) {
+    const popup = document.createElement('div');
+    popup.id = 'ccf-popup';
+    popup.style.position = 'fixed';
+    popup.style.width = '340px';
+    popup.style.background = 'white';
+    popup.style.borderRadius = '18px';
+    popup.style.boxShadow = '0 4px 24px rgba(80, 0, 120, 0.18)';
+    popup.style.padding = '0 0 24px 0';
+    popup.style.zIndex = '2147483646';
+    popup.style.transition = 'all 0.2s cubic-bezier(.4,0,.2,1)';
+    popup.style.opacity = '0';
+    popup.style.transform = 'scale(0.95)';
+    popup.style.fontFamily = 'system-ui, sans-serif';
+
+    // Set popup dimensions
+    const popupWidth = 340;
+    const popupHeight = Math.round(popupWidth * 0.8); // 272px
+    popup.style.width = popupWidth + 'px';
+    popup.style.height = popupHeight + 'px';
+
+    // Position the popup so its center aligns with the button's center
+    const btnRect = btn.getBoundingClientRect();
+    popup.style.right = '20px';
+    popup.style.left = 'unset';
+    popup.style.top = `${btnRect.top + (btnRect.height / 2) - (popupHeight / 2)}px`;
+
+    // Header
+    const header = document.createElement('div');
+    header.style.background = '#7c3aed';
+    header.style.borderRadius = '18px 18px 0 0';
+    header.style.height = '64px';
+    header.style.display = 'flex';
+    header.style.alignItems = 'center';
+    header.style.justifyContent = 'space-between';
+    header.style.padding = '0 20px';
+    header.style.position = 'relative';
+
+    // Logo (use your extension icon or a placeholder)
+    const logo = document.createElement('img');
+    logo.src = chrome.runtime.getURL('icons/pplx_logo.png');
+    logo.alt = 'Logo';
+    logo.style.width = '40px';
+    logo.style.height = '40px';
+    logo.style.background = 'white';
+    logo.style.borderRadius = '12px';
+    logo.style.boxShadow = '0 2px 8px rgba(0,0,0,0.10)';
+    logo.style.position = 'absolute';
+    logo.style.left = 'calc(50% - 20px)';
+    logo.style.top = '12px';
+
+    // Close button
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '✕';
+    closeBtn.style.background = 'none';
+    closeBtn.style.border = 'none';
+    closeBtn.style.color = 'white';
+    closeBtn.style.fontSize = '22px';
+    closeBtn.style.cursor = 'pointer';
+    closeBtn.style.position = 'absolute';
+    closeBtn.style.right = '16px';
+    closeBtn.style.top = '16px';
+    closeBtn.onclick = () => {
+      popup.remove();
+      btn.style.opacity = '1';
+      btn.style.visibility = 'visible';
+      document.removeEventListener('click', closePopup);
+    };
+
+    header.appendChild(logo);
+    header.appendChild(closeBtn);
+    popup.appendChild(header);
+
+    // Title
+    const title = document.createElement('div');
+    title.textContent = 'Concepts';
+    title.style.textAlign = 'center';
+    title.style.fontWeight = '700';
+    title.style.fontSize = '22px';
+    title.style.margin = '48px 0 0 0';
+    title.style.letterSpacing = '-0.5px';
+    popup.appendChild(title);
+
+    // Context input
+    const contextLabel = document.createElement('label');
+    contextLabel.textContent = 'Context';
+    contextLabel.style.display = 'block';
+    contextLabel.style.margin = '24px 32px 6px 32px';
+    contextLabel.style.fontWeight = '500';
+    contextLabel.style.fontSize = '15px';
+    contextLabel.style.color = '#7c3aed';
+    popup.appendChild(contextLabel);
+
+    const contextInput = document.createElement('input');
+    contextInput.type = 'text';
+    contextInput.placeholder = 'Add context (optional)';
+    contextInput.style.display = 'block';
+    contextInput.style.width = 'calc(100% - 64px)';
+    contextInput.style.margin = '0 32px 0 32px';
+    contextInput.style.padding = '10px 12px';
+    contextInput.style.border = '1.5px solid #e5e7eb';
+    contextInput.style.borderRadius = '6px';
+    contextInput.style.fontSize = '15px';
+    contextInput.style.marginBottom = '24px';
+    popup.appendChild(contextInput);
+
+    // Start Listening button
+    const startBtn = document.createElement('button');
+    startBtn.textContent = 'Start Listening';
+    startBtn.style.background = '#7c3aed';
+    startBtn.style.color = 'white';
+    startBtn.style.border = 'none';
+    startBtn.style.borderRadius = '999px';
+    startBtn.style.padding = '18px 0';
+    startBtn.style.margin = '0 32px';
+    startBtn.style.width = 'calc(100% - 64px)';
+    startBtn.style.fontWeight = '700';
+    startBtn.style.fontSize = '20px';
+    startBtn.style.cursor = 'pointer';
+    startBtn.style.boxShadow = '0 2px 8px rgba(124,58,237,0.10)';
+    startBtn.style.transition = 'background 0.2s';
+    startBtn.onmouseenter = () => startBtn.style.background = '#5b21b6';
+    startBtn.onmouseleave = () => startBtn.style.background = '#7c3aed';
+    startBtn.onclick = () => {
+      popup.remove();
+      injectSidePanel();
+      // You can use contextInput.value here if you want to pass context
+    };
+    popup.appendChild(startBtn);
+
+    document.body.appendChild(popup);
+
+    // Hide the floating button
+    btn.style.opacity = '0';
+    btn.style.visibility = 'hidden';
+
+    // Animate the popup in
+    requestAnimationFrame(() => {
+      popup.style.opacity = '1';
+      popup.style.transform = 'scale(1)';
+    });
+
+    // Close popup when clicking outside (except on the popup or button)
+    const closePopup = (e) => {
+      if (!popup.contains(e.target) && e.target !== btn) {
+        popup.remove();
+        btn.style.opacity = '1';
+        btn.style.visibility = 'visible';
+        document.removeEventListener('click', closePopup);
+      }
+    };
+    setTimeout(() => {
+      document.addEventListener('click', closePopup);
+    }, 100);
+  }
+
   // Modify the click handler
   btn.onclick = async (e) => {
     // Only trigger click if we're in the main button area (first 50px)
     const rect = btn.getBoundingClientRect();
     if (e.clientX <= rect.left + 50 && !hasDragged) {
-      try {
-        // Inject the side panel
-        injectSidePanel();
-        
-        // Then try to get the content
-        const content = await extractPageContent();
-        if (content) {
-          // Send the extracted content to your side panel
-          const sidePanel = document.getElementById('ccf-side-panel');
-          if (sidePanel) {
-            const event = new CustomEvent('updateContent', { detail: content });
-            sidePanel.dispatchEvent(event);
-          }
-        }
-      } catch (error) {
-        console.error('Error:', error);
-      }
+      // Show popup instead of directly opening the panel
+      showPopup(btn);
     }
     hasDragged = false;
   };
