@@ -1,11 +1,11 @@
 .panel-container {
   font-family: 'Segoe UI', Arial, sans-serif;
-  background: rgba(255, 255, 255, 0.95);
+  background: transparent;
   width: 340px;
   height: 100vh;
   display: flex;
   flex-direction: column;
-  box-shadow: -2px 0 8px rgba(0,0,0,0.07);
+  box-shadow: none;
   position: fixed;
   right: -340px; /* Start off-screen */
   top: 0;
@@ -23,8 +23,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 18px 20px;
-  border-bottom: 1px solid #f0f0f0;
-  background: rgba(249, 250, 251, 0.95);
+  border-bottom: none;
+  background: transparent;
   position: sticky;
   top: 0;
   z-index: 1;
@@ -48,7 +48,8 @@
 
 .panel-info {
   padding: 16px 20px 8px 20px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: none;
+  background: transparent;
 }
 
 .info-title {
@@ -69,6 +70,7 @@
   flex-direction: column;
   padding: 16px 20px 0 20px;
   overflow-y: auto;
+  background: transparent;
 }
 
 .concepts-header {
@@ -104,8 +106,8 @@
 
 .panel-footer {
   padding: 12px 20px;
-  border-top: 1px solid #f0f0f0;
-  background: rgba(249, 250, 251, 0.95);
+  border-top: none;
+  background: transparent;
   font-size: 0.95em;
   color: #888;
   text-align: right;
@@ -114,8 +116,9 @@
 .content-section {
   margin-bottom: 20px;
   padding: 12px;
-  background: #f8f9fa;
+  background: transparent;
   border-radius: 8px;
+  border: none;
 }
 
 .content-section h3 {
