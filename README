@@ -1,0 +1,125 @@
+# That's Cappp
+
+A real-time audio processing and fact-checking system that transcribes speech, extracts claims, and verifies their accuracy.
+
+## Overview
+
+That's Cappp is a browser extension that helps users verify information in real-time. It consists of two main components:
+
+1. **Frontend**: A Chrome extension that captures audio and displays results
+2. **Backend**: A FastAPI server that processes audio and performs fact-checking
+
+## Features
+
+- Real-time audio transcription
+- Automatic claim extraction from speech
+- Fact-checking of extracted claims
+- Browser extension with side panel interface
+- WebSocket-based real-time communication
+
+## Project Structure
+
+```
+.
+├── frontend/           # Chrome extension
+│   ├── manifest.json   # Extension configuration
+│   ├── content.js      # Content script for page interaction
+│   ├── sidepanel.js    # Side panel functionality
+│   ├── sidepanel.html  # Side panel UI
+│   └── icons/          # Extension icons
+│
+└── backend/           # FastAPI server
+    ├── app.py         # Main application
+    ├── requirements.txt # Python dependencies
+    ├── src/           # Source code
+    │   ├── transcription/  # Audio transcription
+    │   ├── claim_extraction/ # Claim extraction
+    │   └── fact_checking/  # Fact checking
+    └── tests/         # Test files
+```
+
+## Prerequisites
+
+- Python 3.8+
+- Node.js and npm
+- Chrome browser
+
+## Installation
+
+### Backend Setup
+
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
+
+2. Create a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Start the server:
+   ```bash
+   python app.py
+   ```
+
+### Frontend Setup
+
+1. Open Chrome and go to `chrome://extensions/`
+2. Enable "Developer mode"
+3. Click "Load unpacked" and select the `frontend` directory
+
+## Usage
+
+1. Click the extension icon in Chrome to open the side panel
+2. Allow microphone access when prompted
+3. Start speaking - the extension will automatically:
+   - Transcribe your speech
+   - Extract claims
+   - Verify facts
+   - Display results in the side panel
+
+## Technologies Used
+
+- **Frontend**:
+  - Chrome Extension API
+  - JavaScript
+  - HTML/CSS
+
+- **Backend**:
+  - FastAPI
+  - Whisper (OpenAI)
+  - LangChain
+  - WebSockets
+  - PyTorch
+
+## Development
+
+### Running Tests
+
+```bash
+cd backend
+python -m pytest tests/
+```
+
+### Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+[Add your license information here]
+
+## Contact
+
+[Add your contact information here]

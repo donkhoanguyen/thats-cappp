@@ -10,12 +10,16 @@
   right: -340px; /* Start off-screen */
   top: 0;
   z-index: 2147483647; /* Highest possible z-index */
-  transition: transform 0.3s ease-in-out;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   overflow-y: auto;
+  opacity: 0;
+  transform: translateX(0) scale(0.98);
+  backdrop-filter: none;
 }
 
 .panel-container.open {
-  transform: translateX(-340px);
+  transform: translateX(-340px) scale(1);
+  opacity: 1;
 }
 
 .panel-header {
