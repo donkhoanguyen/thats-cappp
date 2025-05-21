@@ -20,11 +20,11 @@ async function initializeFloatingButton() {
             // Show side panel
             injectSidePanel();
             
-            // Extract page content with query
+            // Extract audio with query
             try {
-              const pageContent = await extractPageContent(query);
-              if (pageContent) {
-                updateSidePanelContent(pageContent);
+              const Audio = await extractAudio(query);
+              if (Audio) {
+                updateSidePanelContent(Audio);
               }
             } catch (error) {
               console.error('Error extracting content:', error);
@@ -45,24 +45,59 @@ async function initializeFloatingButton() {
 // Initialize the extension
 initializeFloatingButton();
 
-// Function to extract page content
-async function extractPageContent(query, retries = 3) {
-  const pageContent = {
-    url: window.location.href,
-    query: query
-  };
-
+// Function to extract audio
+async function extractAudio(query, retries = 3) {
   for (let i = 0; i < retries; i++) {
     try {
       // Create WebSocket connection
       const ws = new WebSocket('ws://localhost:8000/ws/start-listening');
       
       return new Promise((resolve, reject) => {
-        ws.onopen = () => {
-          // Send the page content when connection is established
-          // Ensure we're sending a string, not binary data
-          const message = JSON.stringify(pageContent);
-          ws.send(message);
+        ws.onopen = async () => {
+          try {
+            // Request microphone access
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+              audio: {
+                sampleRate: 16000,
+                channelCount: 1,
+                echoCancellation: true,
+                noiseSuppression: true
+              }
+            });
+
+            // Create audio context with correct sample rate
+            const audioContext = new AudioContext({
+              sampleRate: 16000
+            });
+
+            // Create media recorder
+            const mediaRecorder = new MediaRecorder(stream, {
+              mimeType: 'audio/webm;codecs=opus'
+            });
+
+            // Handle data available event
+            mediaRecorder.ondataavailable = async (event) => {
+              if (event.data.size > 0 && ws.readyState === WebSocket.OPEN) {
+                try {
+                  // Convert audio data to the correct format
+                  const audioData = await event.data.arrayBuffer();
+                  ws.send(audioData);
+                } catch (error) {
+                  console.error('Error processing audio data:', error);
+                }
+              }
+            };
+
+            // Start recording in chunks
+            mediaRecorder.start(1000); // Record in 1-second chunks
+
+            // Store mediaRecorder in the WebSocket object for cleanup
+            ws.mediaRecorder = mediaRecorder;
+            ws.stream = stream;
+          } catch (error) {
+            console.error('Error accessing microphone:', error);
+            reject(error);
+          }
         };
 
         ws.onmessage = async (event) => {
@@ -71,7 +106,16 @@ async function extractPageContent(query, retries = 3) {
             const data = event.data instanceof Blob 
               ? JSON.parse(await event.data.text())
               : JSON.parse(event.data);
-            ws.close(); // Close the connection after receiving the response
+            
+            // Cleanup
+            if (ws.mediaRecorder) {
+              ws.mediaRecorder.stop();
+            }
+            if (ws.stream) {
+              ws.stream.getTracks().forEach(track => track.stop());
+            }
+            ws.close();
+            
             resolve(data);
           } catch (error) {
             console.error('Error parsing WebSocket message:', error);
@@ -82,12 +126,26 @@ async function extractPageContent(query, retries = 3) {
 
         ws.onerror = (error) => {
           console.error('WebSocket error:', error);
+          // Cleanup
+          if (ws.mediaRecorder) {
+            ws.mediaRecorder.stop();
+          }
+          if (ws.stream) {
+            ws.stream.getTracks().forEach(track => track.stop());
+          }
           ws.close();
           reject(error);
         };
 
         ws.onclose = (event) => {
           console.log('WebSocket connection closed:', event.code, event.reason);
+          // Ensure cleanup
+          if (ws.mediaRecorder) {
+            ws.mediaRecorder.stop();
+          }
+          if (ws.stream) {
+            ws.stream.getTracks().forEach(track => track.stop());
+          }
         };
       });
     } catch (error) {

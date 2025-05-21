@@ -7,6 +7,7 @@ import logging
 from src.transcription.transcriber import Transcriber
 from src.claim_extraction.gpt_extractor import ClaimExtractor
 from src.fact_checking.fact_checker import FactChecker
+import numpy as np
 
 # Initialize FastAPI app
 app = FastAPI(title="Audio Processing Pipeline")
@@ -32,68 +33,36 @@ transcriber = Transcriber(claim_extractor, fact_checker)
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     try:
-        # Start transcription in background
-        asyncio.create_task(transcriber.transcribe_realtime(duration=30))
-
         while True:
-            await websocket.receive_bytes()  # Still consume data if needed
-            # You could buffer audio to a queue here if desired
+            # Receive audio data from client
+            audio_data = await websocket.receive_bytes()
+            
+            # Convert bytes to numpy array
+            audio_array = np.frombuffer(audio_data, dtype=np.float32)
+            
+            # Process through pipeline
+            transcription = await process_audio(audio_array)
+            if transcription:
+                # Send transcription back to client
+                await websocket.send_text(json.dumps({
+                    "type": "transcription",
+                    "text": transcription
+                }))
+                
     except Exception as e:
         logging.error(f"WebSocket error: {str(e)}")
     finally:
         await websocket.close()
 
-
-# @app.websocket("/ws/start-listening")
-# async def websocket_endpoint(websocket: WebSocket):
-#     await websocket.accept()
-#     try:
-#         while True:
-#             # Receive audio data from client
-#             audio_data = await websocket.receive_bytes()
-            
-#             # Process through pipeline
-#             transcription = await process_audio(audio_data)
-#             if transcription:
-#                 # Send transcription back to client
-#                 await websocket.send_text(json.dumps({
-#                     "type": "transcription",
-#                     "text": transcription
-#                 }))
-                
-#     except Exception as e:
-#         logging.error(f"WebSocket error: {str(e)}")
-#     finally:
-#         await websocket.close()
-
-# # File upload endpoint for audio files
-# @app.post("/upload/audio")
-# async def upload_audio(file: UploadFile = File(...)):
-#     try:
-#         contents = await file.read()
-#         # Process through pipeline
-#         transcription = await process_audio(contents)
-#         claims = await extract_claims(transcription) if transcription else None
-#         fact_check_results = await fact_check(claims) if claims else None
-        
-#         return {
-#             "transcription": transcription,
-#             "claims": claims,
-#             "fact_check_results": fact_check_results
-#         }
-#     except Exception as e:
-#         logging.error(f"File upload error: {str(e)}")
-#         return {"error": str(e)}
-
-# async def process_audio(audio_data: bytes) -> str:
-#     """Process audio data through the transcriber"""
-#     try:
-#         # Use the existing transcriber instance
-#         result = await transcriber.transcribe_realtime(duration=30)
-#         return result
-#     except Exception as e:
-#         logging.error(f"Transcription error: {str(e)}")
-#         return None
+async def process_audio(audio_data: np.ndarray) -> str:
+    """Process audio data through the transcriber"""
+    try:
+        # Use the existing transcriber instance
+        result = await transcriber.transcribe_realtime(duration=30)
+        return result
+    except Exception as e:
+        logging.error(f"Transcription error: {str(e)}")
+        return None
 
 @app.websocket("/ws/stop-listening")
 async def stop_listening_endpoint(websocket: WebSocket):
