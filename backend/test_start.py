@@ -5,7 +5,7 @@ import json
 
 # For WebSocket streaming
 async def stream_audio():
-    uri = "ws://localhost:8000/ws/audio"
+    uri = "ws://localhost:8000/ws/start-listening"
     async with websockets.connect(uri) as websocket:
         # Simulate sending audio data (replace with your actual audio data)
         audio_data = b"your_audio_data_here"

@@ -12,6 +12,140 @@ const mockConcepts = [
   'Web technologies'
 ];
 
+// State management
+let isListening = false;
+let websocket = null;
+let currentSessionId = null;
+
+// Function to start listening
+async function startListening() {
+  try {
+    // Create WebSocket connection
+    websocket = new WebSocket('ws://127.0.0.1:8000/ws/start-listening');
+    
+    websocket.onopen = () => {
+      console.log('WebSocket connection established');
+      isListening = true;
+      
+      // Show listening UI
+      const listeningStatus = document.querySelector('.listening-status');
+      const stopButton = document.querySelector('.stop-button');
+      if (listeningStatus) listeningStatus.style.display = 'flex';
+      if (stopButton) stopButton.style.display = 'block';
+    };
+
+    websocket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      
+      if (data.type === 'transcription') {
+        // Update UI with transcription
+        const contentContainer = document.querySelector('.content-container');
+        if (contentContainer) {
+          const transcriptionElement = document.createElement('div');
+          transcriptionElement.className = 'content-section';
+          transcriptionElement.innerHTML = `
+            <h3>Transcription</h3>
+            <p>${data.text}</p>
+          `;
+          contentContainer.appendChild(transcriptionElement);
+        }
+      }
+    };
+
+    websocket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      cleanupListening();
+    };
+
+    websocket.onclose = () => {
+      console.log('WebSocket connection closed');
+      cleanupListening();
+    };
+
+  } catch (error) {
+    console.error('Error starting listening:', error);
+    cleanupListening();
+  }
+}
+
+// Function to stop listening
+async function stopListening() {
+  try {
+    // Create WebSocket connection for stopping
+    const stopWebSocket = new WebSocket('ws://127.0.0.1:8000/ws/stop-listening');
+    
+    stopWebSocket.onopen = () => {
+      console.log('Stop listening WebSocket connection established');
+      // Send stop command
+      stopWebSocket.send(JSON.stringify({
+        type: "stop"
+      }));
+    };
+
+    stopWebSocket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      
+      if (data.type === 'status') {
+        if (data.status === 'stopping') {
+          console.log('Stopping listening...');
+        } else if (data.status === 'stopped') {
+          console.log('Successfully stopped listening');
+          // Close the main listening WebSocket
+          if (websocket) {
+            websocket.close();
+          }
+          cleanupListening();
+          // Close the stop WebSocket after cleanup
+          stopWebSocket.close();
+        }
+      } else if (data.type === 'error') {
+        console.error('Error stopping listening:', data.message);
+        cleanupListening();
+        stopWebSocket.close();
+      }
+    };
+
+    stopWebSocket.onerror = (error) => {
+      console.error('Stop listening WebSocket error:', error);
+      cleanupListening();
+      stopWebSocket.close();
+    };
+
+    stopWebSocket.onclose = () => {
+      console.log('Stop listening WebSocket connection closed');
+    };
+
+  } catch (error) {
+    console.error('Error in stop listening:', error);
+    cleanupListening();
+  }
+}
+
+// Function to cleanup listening state
+function cleanupListening() {
+  // Close WebSocket if it exists
+  if (websocket) {
+    websocket.close();
+    websocket = null;
+  }
+
+  // Reset state
+  isListening = false;
+  currentSessionId = null;
+
+  // Update UI
+  const listeningStatus = document.querySelector('.listening-status');
+  const stopButton = document.querySelector('.stop-button');
+  if (listeningStatus) listeningStatus.style.display = 'none';
+  if (stopButton) stopButton.style.display = 'none';
+
+  // Clear any temporary data
+  const contentContainer = document.querySelector('.content-container');
+  if (contentContainer) {
+    contentContainer.innerHTML = '<p style="text-align:center; color:#666;">Listening stopped</p>';
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   // Listen for content update events
   document.addEventListener('updateContent', (event) => {
@@ -53,34 +187,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // Add stop button functionality
   const stopButton = document.querySelector('.stop-button');
   if (stopButton) {
-    stopButton.addEventListener('click', async () => {
-      try {
-        // Call FastAPI endpoint to stop listening
-        const response = await fetch('http://127.0.0.1:8000/stop-listening', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        });
+    stopButton.addEventListener('click', stopListening);
+  }
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        // Hide listening status and stop button
-        const listeningStatus = document.querySelector('.listening-status');
-        if (listeningStatus) {
-          listeningStatus.style.display = 'none';
-        }
-        stopButton.style.display = 'none';
-
-        // Show success message or handle UI updates
-        console.log('Successfully stopped listening');
-      } catch (error) {
-        console.error('Error stopping listening:', error);
-        // Handle error (show error message to user)
-      }
-    });
+  // Add start listening functionality (if you have a start button)
+  const startButton = document.querySelector('.start-button');
+  if (startButton) {
+    startButton.addEventListener('click', startListening);
   }
 });
 

@@ -27,27 +27,44 @@ fact_checker = FactChecker()
 transcriber = Transcriber(claim_extractor, fact_checker)
 
 # WebSocket endpoint for real-time audio streaming
-@app.websocket("/ws/audio")
+# here put in background tasks
+@app.websocket("/ws/start-listening")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     try:
+        # Start transcription in background
+        asyncio.create_task(transcriber.transcribe_realtime(duration=30))
+
         while True:
-            # Receive audio data from client
-            audio_data = await websocket.receive_bytes()
-            
-            # Process through pipeline
-            transcription = await process_audio(audio_data)
-            if transcription:
-                # Send transcription back to client
-                await websocket.send_text(json.dumps({
-                    "type": "transcription",
-                    "text": transcription
-                }))
-                
+            await websocket.receive_bytes()  # Still consume data if needed
+            # You could buffer audio to a queue here if desired
     except Exception as e:
         logging.error(f"WebSocket error: {str(e)}")
     finally:
         await websocket.close()
+
+
+# @app.websocket("/ws/start-listening")
+# async def websocket_endpoint(websocket: WebSocket):
+#     await websocket.accept()
+#     try:
+#         while True:
+#             # Receive audio data from client
+#             audio_data = await websocket.receive_bytes()
+            
+#             # Process through pipeline
+#             transcription = await process_audio(audio_data)
+#             if transcription:
+#                 # Send transcription back to client
+#                 await websocket.send_text(json.dumps({
+#                     "type": "transcription",
+#                     "text": transcription
+#                 }))
+                
+#     except Exception as e:
+#         logging.error(f"WebSocket error: {str(e)}")
+#     finally:
+#         await websocket.close()
 
 # # File upload endpoint for audio files
 # @app.post("/upload/audio")
@@ -68,15 +85,52 @@ async def websocket_endpoint(websocket: WebSocket):
 #         logging.error(f"File upload error: {str(e)}")
 #         return {"error": str(e)}
 
-async def process_audio(audio_data: bytes) -> str:
-    """Process audio data through the transcriber"""
+# async def process_audio(audio_data: bytes) -> str:
+#     """Process audio data through the transcriber"""
+#     try:
+#         # Use the existing transcriber instance
+#         result = await transcriber.transcribe_realtime(duration=30)
+#         return result
+#     except Exception as e:
+#         logging.error(f"Transcription error: {str(e)}")
+#         return None
+
+@app.websocket("/ws/stop-listening")
+async def stop_listening_endpoint(websocket: WebSocket):
+    await websocket.accept()
     try:
-        # Use the existing transcriber instance
-        result = await transcriber.transcribe_realtime(duration=30)
-        return result
+        # Wait for stop command from client
+        while True:
+            data = await websocket.receive_text()
+            command = json.loads(data)
+            
+            if command.get("type") == "stop":
+                # Send acknowledgment that we're stopping
+                await websocket.send_text(json.dumps({
+                    "type": "status",
+                    "status": "stopping"
+                }))
+                
+                # Cleanup any ongoing transcription
+                if transcriber:
+                    await transcriber.stop_transcription()
+                    
+                # Send final confirmation
+                await websocket.send_text(json.dumps({
+                    "type": "status",
+                    "status": "stopped"
+                }))
+                break  # Exit the loop after stopping
+                
     except Exception as e:
-        logging.error(f"Transcription error: {str(e)}")
-        return None
+        logging.error(f"Stop listening error: {str(e)}")
+        # Send error status
+        await websocket.send_text(json.dumps({
+            "type": "error",
+            "message": str(e)
+        }))
+    finally:
+        await websocket.close()
 
 if __name__ == "__main__":
     import uvicorn
