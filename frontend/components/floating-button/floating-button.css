@@ -1,0 +1,55 @@
+#ccf-floating-btn {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.95);
+  border: none;
+  border-radius: 14px 0 0 14px;
+  padding: 0;
+  width: 50px;
+  height: 50px;
+  z-index: 2147483647;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  transition: all 0.3s ease-in-out;
+  overflow: hidden;
+}
+
+#ccf-floating-btn:hover {
+  width: 75px;
+}
+
+#ccf-floating-btn .dotted-area {
+  width: 25px;
+  height: 100%;
+  background-image: radial-gradient(circle, #ccc 1px, transparent 1px);
+  background-size: 4px 4px;
+  background-position: center;
+  opacity: 0.5;
+  position: absolute;
+  right: -25px;
+  top: 0;
+  transition: right 0.2s ease;
+  pointer-events: none;
+  border-left: 1px solid #eee;
+}
+
+#ccf-floating-btn:hover .dotted-area {
+  right: 0;
+  pointer-events: auto;
+}
+
+#ccf-floating-btn img {
+  width: 28px;
+  height: 28px;
+  display: block;
+  margin: 0 auto;
+  pointer-events: none;
+  position: relative;
+  z-index: 1;
+} 
