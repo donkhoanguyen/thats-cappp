@@ -49,6 +49,39 @@ document.addEventListener('DOMContentLoaded', () => {
       // TODO: Add recording stop logic here
     }
   });
+
+  // Add stop button functionality
+  const stopButton = document.querySelector('.stop-button');
+  if (stopButton) {
+    stopButton.addEventListener('click', async () => {
+      try {
+        // Call FastAPI endpoint to stop listening
+        const response = await fetch('http://127.0.0.1:8000/stop-listening', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        // Hide listening status and stop button
+        const listeningStatus = document.querySelector('.listening-status');
+        if (listeningStatus) {
+          listeningStatus.style.display = 'none';
+        }
+        stopButton.style.display = 'none';
+
+        // Show success message or handle UI updates
+        console.log('Successfully stopped listening');
+      } catch (error) {
+        console.error('Error stopping listening:', error);
+        // Handle error (show error message to user)
+      }
+    });
+  }
 });
 
 // Chatbot DOM Elements (added for chatbot functionality)
