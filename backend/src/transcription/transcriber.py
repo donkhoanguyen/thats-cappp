@@ -23,11 +23,6 @@ class AudioRecorder:
     def __init__(self, samplerate: int = 16000, device: Optional[int] = None):
         self.samplerate = samplerate
         self.device = device
-class AudioRecorder:
-    """Handles recording audio in chunks with overlap."""
-    def __init__(self, samplerate: int = 16000, device: Optional[int] = None):
-        self.samplerate = samplerate
-        self.device = device
         self.is_running = False
 
     def record_chunk(self, duration: float) -> np.ndarray:
@@ -167,20 +162,13 @@ class Transcriber:
 
 
                 recording_start = time.time()
-                audio = self.recorder.record_chunk(recording_duration)
+                # audio = self.recorder.record_chunk(recording_duration)
+                # recording_time = time.time() - recording_start
+
+                loop = asyncio.get_running_loop()
+                audio = await loop.run_in_executor(None, self.recorder.record_chunk, recording_duration)
                 recording_time = time.time() - recording_start
-
-                next_start_time += chunk_interval
-                sleep_time = max(0, next_start_time - time.time())
-                if sleep_time > 0:
-                    time.sleep(sleep_time)
-                else:
-                    print(f"WARNING: System is {-sleep_time:.2f}s behind schedule.")
-                    next_start_time = time.time() + 0.1 # Small buffer
-
-                audio = self.recorder.record_chunk(recording_duration)
-                recording_time = time.time() - recording_start
-
+                
                 next_start_time += chunk_interval
                 sleep_time = max(0, next_start_time - time.time())
                 if sleep_time > 0:
@@ -206,7 +194,6 @@ class Transcriber:
             processing_thread.join(timeout=5)
             if self.output_file:
                 self.output_file.close()
-            print(f"Transcription stopped. Output saved to {self.output_markdown_path}")
             print(f"Transcription stopped. Output saved to {self.output_markdown_path}")
 
     async def _process_audio_queue(self):
@@ -286,11 +273,6 @@ class Transcriber:
         avg_extract = sum(self.processor.processing_times['extract']) / len(self.processor.processing_times['extract']) if self.processor.processing_times['extract'] else 0
         avg_check = sum(self.processor.processing_times['check']) / len(self.processor.processing_times['check']) if self.processor.processing_times['check'] else 0
 
-
-        avg_transcribe = sum(self.processor.processing_times['transcribe']) / len(self.processor.processing_times['transcribe'])
-        avg_extract = sum(self.processor.processing_times['extract']) / len(self.processor.processing_times['extract']) if self.processor.processing_times['extract'] else 0
-        avg_check = sum(self.processor.processing_times['check']) / len(self.processor.processing_times['check']) if self.processor.processing_times['check'] else 0
-
         print("\n--- PERFORMANCE REPORT ---")
         print(f"Average transcription time: {avg_transcribe:.2f}s")
         print(f"Average claim extraction time: {avg_extract:.2f}s")
@@ -347,5 +329,20 @@ class Transcriber:
         self.output_file.write(f"\n### Fact check results for chunk {chunk_idx+1}:\n")
         self.output_file.write(f"{fact_check_results}\n\n")
         self.output_file.flush()
+
+    async def stop_transcription(self):
+        """Stop the transcription process and clean up resources."""
+        self.is_running = False
+        if self.output_file:
+            self.output_file.close()
+            self.output_file = None
+        # Clear the audio queue
+        while not self.audio_queue.empty():
+            try:
+                self.audio_queue.get_nowait()
+                self.audio_queue.task_done()
+            except Empty:
+                break
+        return True
 
 from queue import Empty # Import here to avoid circular dependency issues
