@@ -49,25 +49,47 @@ initializeFloatingButton();
 async function extractPageContent(query, retries = 3) {
   const pageContent = {
     url: window.location.href,
-    query: query // Include the query in the request
+    query: query
   };
 
   for (let i = 0; i < retries; i++) {
     try {
-      const response = await fetch('http://localhost:8000/extract-content', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(pageContent)
+      // Create WebSocket connection
+      const ws = new WebSocket('ws://localhost:8000/ws/start-listening');
+      
+      return new Promise((resolve, reject) => {
+        ws.onopen = () => {
+          // Send the page content when connection is established
+          // Ensure we're sending a string, not binary data
+          const message = JSON.stringify(pageContent);
+          ws.send(message);
+        };
+
+        ws.onmessage = async (event) => {
+          try {
+            // Handle both text and binary messages
+            const data = event.data instanceof Blob 
+              ? JSON.parse(await event.data.text())
+              : JSON.parse(event.data);
+            ws.close(); // Close the connection after receiving the response
+            resolve(data);
+          } catch (error) {
+            console.error('Error parsing WebSocket message:', error);
+            ws.close();
+            reject(error);
+          }
+        };
+
+        ws.onerror = (error) => {
+          console.error('WebSocket error:', error);
+          ws.close();
+          reject(error);
+        };
+
+        ws.onclose = (event) => {
+          console.log('WebSocket connection closed:', event.code, event.reason);
+        };
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data;
     } catch (error) {
       console.error(`Attempt ${i + 1} failed:`, error);
       if (i === retries - 1) {

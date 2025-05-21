@@ -7,8 +7,13 @@
     "scripting",
     "activeTab"
   ],
+  "host_permissions": [
+    "http://localhost:8000/*",
+    "ws://localhost:8000/*"
+  ],
   "background": {
-    "service_worker": "background/background.js"
+    "service_worker": "background/background.js",
+    "type": "module"
   },
   "content_scripts": [
     {
@@ -18,8 +23,7 @@
         "components/floating-button/floating-button.css",
         "components/popup/popup.css",
         "components/sidepanel/sidepanel.css"
-      ],
-      "type": "module"
+      ]
     }
   ],
   "icons": {
@@ -37,7 +41,8 @@
         "components/sidepanel/sidepanel.html",
         "components/popup/popup.html",
         "components/popup/popup.js",
-        "components/floating-button/floating-button.js"
+        "components/floating-button/floating-button.js",
+        "services/api.js"
       ],
       "matches": ["<all_urls>"]
     }
