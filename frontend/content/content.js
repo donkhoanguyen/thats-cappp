@@ -45,41 +45,6 @@ async function initializeFloatingButton() {
 // Initialize the extension
 initializeFloatingButton();
 
-// Function to extract page content
-async function extractPageContent(query, retries = 3) {
-  const pageContent = {
-    url: window.location.href,
-    query: query // Include the query in the request
-  };
-
-  for (let i = 0; i < retries; i++) {
-    try {
-      const response = await fetch('http://localhost:8000/extract-content', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(pageContent)
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error(`Attempt ${i + 1} failed:`, error);
-      if (i === retries - 1) {
-        showError('Failed to connect to backend server. Please ensure it is running at http://localhost:8000');
-        return null;
-      }
-      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
-    }
-  }
-  return null;
-}
-
 // Function to show error message
 function showError(message) {
   const errorMessage = document.createElement('div');
