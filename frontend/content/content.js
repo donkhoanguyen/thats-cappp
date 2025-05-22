@@ -65,35 +65,47 @@ async function extractAudio(query, retries = 3) {
               }
             });
 
-            // Create audio context with correct sample rate
-            const audioContext = new AudioContext({
-              sampleRate: 16000
-            });
-
-            // Create media recorder
+            // Create media recorder with longer chunks
             const mediaRecorder = new MediaRecorder(stream, {
               mimeType: 'audio/webm;codecs=opus'
             });
+
+            // Add progress indicator
+            const progressDiv = document.createElement('div');
+            progressDiv.style.position = 'fixed';
+            progressDiv.style.top = '20px';
+            progressDiv.style.right = '20px';
+            progressDiv.style.padding = '10px 20px';
+            progressDiv.style.background = '#4CAF50';
+            progressDiv.style.color = 'white';
+            progressDiv.style.borderRadius = '4px';
+            progressDiv.style.zIndex = '2147483647';
+            progressDiv.textContent = 'Recording...';
+            document.body.appendChild(progressDiv);
 
             // Handle data available event
             mediaRecorder.ondataavailable = async (event) => {
               if (event.data.size > 0 && ws.readyState === WebSocket.OPEN) {
                 try {
-                  // Convert audio data to the correct format
+                  // Send the compressed WebM data directly
                   const audioData = await event.data.arrayBuffer();
                   ws.send(audioData);
                 } catch (error) {
                   console.error('Error processing audio data:', error);
+                  progressDiv.textContent = 'Error processing audio';
+                  progressDiv.style.background = '#ff4444';
                 }
               }
             };
 
-            // Start recording in chunks
-            mediaRecorder.start(1000); // Record in 1-second chunks
+            // Start recording in 30-second chunks
+            mediaRecorder.start(30000); // Record in 30-second chunks
 
             // Store mediaRecorder in the WebSocket object for cleanup
             ws.mediaRecorder = mediaRecorder;
             ws.stream = stream;
+            ws.progressDiv = progressDiv;
+
           } catch (error) {
             console.error('Error accessing microphone:', error);
             reject(error);
@@ -102,10 +114,18 @@ async function extractAudio(query, retries = 3) {
 
         ws.onmessage = async (event) => {
           try {
-            // Handle both text and binary messages
             const data = event.data instanceof Blob 
               ? JSON.parse(await event.data.text())
               : JSON.parse(event.data);
+            
+            // Update progress based on message type
+            if (ws.progressDiv) {
+              if (data.type === 'transcription') {
+                ws.progressDiv.textContent = 'Processing...';
+              } else if (data.type === 'status') {
+                ws.progressDiv.textContent = data.status;
+              }
+            }
             
             // Cleanup
             if (ws.mediaRecorder) {
@@ -114,11 +134,18 @@ async function extractAudio(query, retries = 3) {
             if (ws.stream) {
               ws.stream.getTracks().forEach(track => track.stop());
             }
+            if (ws.progressDiv) {
+              ws.progressDiv.remove();
+            }
             ws.close();
             
             resolve(data);
           } catch (error) {
             console.error('Error parsing WebSocket message:', error);
+            if (ws.progressDiv) {
+              ws.progressDiv.textContent = 'Error processing response';
+              ws.progressDiv.style.background = '#ff4444';
+            }
             ws.close();
             reject(error);
           }
@@ -126,12 +153,19 @@ async function extractAudio(query, retries = 3) {
 
         ws.onerror = (error) => {
           console.error('WebSocket error:', error);
+          if (ws.progressDiv) {
+            ws.progressDiv.textContent = 'Connection error';
+            ws.progressDiv.style.background = '#ff4444';
+          }
           // Cleanup
           if (ws.mediaRecorder) {
             ws.mediaRecorder.stop();
           }
           if (ws.stream) {
             ws.stream.getTracks().forEach(track => track.stop());
+          }
+          if (ws.progressDiv) {
+            ws.progressDiv.remove();
           }
           ws.close();
           reject(error);
@@ -145,6 +179,9 @@ async function extractAudio(query, retries = 3) {
           }
           if (ws.stream) {
             ws.stream.getTracks().forEach(track => track.stop());
+          }
+          if (ws.progressDiv) {
+            ws.progressDiv.remove();
           }
         };
       });
