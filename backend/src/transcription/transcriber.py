@@ -1,5 +1,4 @@
 import whisper
-import sounddevice as sd
 import numpy as np
 import time
 import asyncio
@@ -17,21 +16,6 @@ try:
     HAVE_PSUTIL = True
 except ImportError:
     HAVE_PSUTIL = False
-
-class AudioRecorder:
-    """Handles recording audio in chunks with overlap."""
-    def __init__(self, samplerate: int = 16000, device: Optional[int] = None):
-        self.samplerate = samplerate
-        self.device = device
-        self.is_running = False
-
-    def record_chunk(self, duration: float) -> np.ndarray:
-        """Records a single audio chunk."""
-        samples_to_record = int(duration * self.samplerate)
-        audio = sd.rec(samples_to_record, samplerate=self.samplerate,
-                      channels=1, dtype='float32', device=self.device)
-        sd.wait()
-        return np.squeeze(audio)
 
 class TranscriptionProcessor:
     """Processes audio chunks: transcribes, extracts claims, and fact-checks."""
@@ -66,7 +50,6 @@ class TranscriptionProcessor:
         check_start = time.time()
 
         for claim in claims:
-
             # here change claims into inputs for langgraph graph checker
             input = {
                 "claim": claim
@@ -83,11 +66,9 @@ class TranscriptionProcessor:
 class Transcriber:
     def __init__(self, extractor: ClaimExtractor, # checker: FactChecker,
                  config: Optional[Dict] = None, model_name: str = "base",
-                 samplerate: int = 16000, device: Optional[int] = None,
                  output_markdown: str = "transcription.md"):
         self.config = config
         self.processor = TranscriptionProcessor(model_name, extractor)
-        self.recorder = AudioRecorder(samplerate, device)
         self.transcriptions = []
         self.audio_queue = Queue()
         self.is_running = False
@@ -96,98 +77,44 @@ class Transcriber:
         self.queue_stats = {"max_size": 0, "current_size": 0}
         self.start_time = 0  # Initialize start time here
 
-    async def transcribe_realtime(self, duration: float = 30, recording_duration: float = 35):
+    async def process_audio_data(self, audio_data: bytes, chunk_idx: int, chunk_start: float, chunk_end: float):
+        """Process audio data received from WebSocket."""
+        if not self.is_running:
+            return
+
+        # Convert bytes to numpy array (assuming 16-bit PCM audio)
+        audio = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32768.0
+
+        self.audio_queue.put({
+            'audio': audio,
+            'chunk_idx': chunk_idx,
+            'start_time': chunk_start,
+            'end_time': chunk_end
+        })
+
+    async def transcribe_realtime(self, duration: float = 30):
         """
-        Listens to the microphone in real time, using separate threads for recording and processing.
-        Records overlapping audio chunks by recording for longer than the chunk interval.
-
-
-        Args:
-            duration: Time in seconds between the start of consecutive recordings (default: 30s)
-            recording_duration: Length of each recording in seconds (default: 35s)
+        Processes audio data received from WebSocket in real-time.
         """
-        chunk_interval = duration
-        print(f"Setting up real-time transcription with {recording_duration}s recordings every {chunk_interval}s...")
-        if recording_duration <= chunk_interval:
-            print(f"Warning: Recording duration ({recording_duration}s) is not greater than chunk interval ({chunk_interval}s). No overlap will occur.")
-        else:
-            overlap = recording_duration - chunk_interval
-            print(f"Audio chunks will overlap by {overlap:.1f}s")
-
-
+        print(f"Setting up real-time transcription with {duration}s chunks...")
         self.is_running = True
         self.start_time = time.time()
 
-        # Print system info (moved to a utility function for better organization)
-        self._print_system_info()
-
-        self.start_time = time.time()
-
-        # Print system info (moved to a utility function for better organization)
+        # Print system info
         self._print_system_info()
 
         # Open output file
         self.output_file = open(self.output_markdown_path, "w")
-        self._write_markdown_header(recording_duration, chunk_interval, recording_duration - chunk_interval)
-
-        self.output_file = open(self.output_markdown_path, "w")
-        self._write_markdown_header(recording_duration, chunk_interval, recording_duration - chunk_interval)
+        self._write_markdown_header(duration, duration, 0)
 
         # Start the processing thread
         processing_thread = Thread(target=asyncio.run, args=(self._process_audio_queue(),))
         processing_thread.daemon = True
         processing_thread.start()
 
-
         try:
-            chunk_idx = 0
-            next_start_time = time.time()
-
-            next_start_time = time.time()
-
             while self.is_running:
-                current_time = time.time()
-                chunk_start = current_time - self.start_time
-                chunk_start = current_time - self.start_time
-                chunk_end = chunk_start + recording_duration
-
-
-                self.queue_stats["current_size"] = self.audio_queue.qsize()
-                self.queue_stats["max_size"] = max(self.queue_stats["max_size"], self.queue_stats["current_size"])
-
-
-                print(f"Recording chunk {chunk_idx+1}, Start: {chunk_start:.2f}s, End: {chunk_end:.2f}s (Queue size: {self.queue_stats['current_size']})")
-                if self.queue_stats["current_size"] > 2:
-                    print(f"WARNING: Processing is falling behind. Queue contains {self.queue_stats['current_size']} unprocessed chunks.")
-
-
-                recording_start = time.time()
-                # audio = self.recorder.record_chunk(recording_duration)
-                # recording_time = time.time() - recording_start
-
-                loop = asyncio.get_running_loop()
-                audio = await loop.run_in_executor(None, self.recorder.record_chunk, recording_duration)
-                recording_time = time.time() - recording_start
-                
-                next_start_time += chunk_interval
-                sleep_time = max(0, next_start_time - time.time())
-                if sleep_time > 0:
-                    time.sleep(sleep_time)
-                else:
-                    print(f"WARNING: System is {-sleep_time:.2f}s behind schedule.")
-                    next_start_time = time.time() + 0.1 # Small buffer
-
-                self.audio_queue.put({
-                    'audio': audio,
-                    'chunk_idx': chunk_idx,
-                    'start_time': chunk_start,
-                    'end_time': chunk_start + recording_time
-                })
-
-
-                chunk_idx += 1
-
-
+                await asyncio.sleep(0.1)  # Small sleep to prevent CPU spinning
         except KeyboardInterrupt:
             print("Stopping real-time transcription...")
             self.is_running = False
@@ -226,36 +153,7 @@ class Transcriber:
                 if chunk_idx > 0 and chunk_idx % 5 == 0:
                     self._report_performance()
 
-
-                chunk_processing_start = time.time()
-                print(f"Processing chunk {chunk_idx+1}...")
-                queue_wait_time = chunk_processing_start - chunk_start
-                if queue_wait_time > 10:
-                    print(f"WARNING: Chunk waited in queue for {queue_wait_time:.2f}s")
-
-                transcription = await self.processor.transcribe(audio)
-                self.transcriptions.append(transcription)
-                print(f"Transcription for chunk {chunk_idx+1} completed in {self.processor.processing_times['transcribe'][-1]:.2f}s: {transcription}")
-                self._write_transcription_to_markdown(chunk_start, chunk_end, transcription)
-
-                processing_results = await self.processor.extract_and_check(transcription)
-                claims = processing_results['claims']
-                fact_check_results = processing_results['fact_check_results']
-
-                self._write_claims_and_results_to_markdown(chunk_idx, chunk_start, claims, fact_check_results)
-
-                if chunk_idx > 0 and chunk_idx % 5 == 0:
-                    self._report_performance()
-
                 self.audio_queue.task_done()
-            except Empty:
-                await asyncio.sleep(0.01) # Small sleep when queue is empty
-            except Exception as e:
-                print(f"Error processing audio chunk: {e}")
-                if self.output_file:
-                    self.output_file.write(f"\nError processing chunk: {e}\n")
-                    self.output_file.flush()
-
             except Empty:
                 await asyncio.sleep(0.01) # Small sleep when queue is empty
             except Exception as e:
@@ -280,17 +178,12 @@ class Transcriber:
         print(f"Total average API processing time: {(avg_transcribe + avg_extract + avg_check):.2f}s")
         print(f"Current queue size: {self.audio_queue.qsize()} chunks")
 
-
         if HAVE_PSUTIL:
             print(f"CPU usage: {psutil.cpu_percent()}%")
             print(f"Memory usage: {psutil.virtual_memory().percent}%")
 
-
         if avg_transcribe + avg_extract + avg_check > 30:
             print("\nWARNING: Average processing time exceeds recording interval!")
-            print("The processing queue will continue to grow unless processing speeds up.")
-            print("Consider using a faster model, reducing recording quality, or increasing chunk_interval.")
-
             print("The processing queue will continue to grow unless processing speeds up.")
             print("Consider using a faster model, reducing recording quality, or increasing chunk_interval.")
 
