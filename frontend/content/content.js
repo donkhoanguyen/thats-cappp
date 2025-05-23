@@ -15,22 +15,13 @@ async function initializeFloatingButton() {
           const popupModule = await import(chrome.runtime.getURL('components/popup/popup.js'));
           const popup = new popupModule.Popup();
           
-          // Set up submit callback
-          popup.setOnSubmit(async (query) => {
-            // Show side panel
-            injectSidePanel();
-            
-            // Extract page content with query
-            try {
-              const pageContent = await extractPageContent(query);
-              if (pageContent) {
-                updateSidePanelContent(pageContent);
-              }
-            } catch (error) {
-              console.error('Error extracting content:', error);
-              showError('Failed to analyze content. Please try again.');
-            }
-          });
+          // Removed: popup.setOnSubmit() is no longer a function
+          // popup.setOnSubmit(async (query) => {
+          //   // Show side panel - This logic is now handled by popup.js when
+          //   // "startListening" is triggered, by sending a message to background.js
+          //   // which then opens the side panel.
+          //   injectSidePanel();
+          // });
           
           // Initialize and show popup
           await popup.initialize(floatingButton);
@@ -45,7 +36,7 @@ async function initializeFloatingButton() {
 // Initialize the extension
 initializeFloatingButton();
 
-// Function to show error message
+// Function to show error message (Keep as is)
 function showError(message) {
   const errorMessage = document.createElement('div');
   errorMessage.style.position = 'fixed';
@@ -61,7 +52,7 @@ function showError(message) {
   setTimeout(() => errorMessage.remove(), 5000);
 }
 
-// Function to update side panel content
+// Function to update side panel content (Keep as is)
 function updateSidePanelContent(content) {
   const panel = document.getElementById('ccf-side-panel');
   if (panel) {
@@ -72,10 +63,10 @@ function updateSidePanelContent(content) {
   }
 }
 
-// State management for side panel
+// State management for side panel (Keep as is)
 let isPanelOpen = false;
 
-// Function to show panel error message
+// Function to show panel error message (Keep as is)
 function showPanelError(message) {
   const errorDiv = document.createElement('div');
   errorDiv.className = 'panel-error';
@@ -92,7 +83,7 @@ function showPanelError(message) {
   setTimeout(() => errorDiv.remove(), 3000);
 }
 
-// Function to handle panel animation
+// Function to handle panel animation (Keep as is)
 function handlePanelAnimation(panel, isOpening) {
   if (isOpening) {
     panel.style.display = 'block';
@@ -108,7 +99,7 @@ function handlePanelAnimation(panel, isOpening) {
   }
 }
 
-// Function to update button state
+// Function to update button state (Keep as is)
 function updateButtonState(btn, isPanelOpen) {
   if (isPanelOpen) {
     btn.style.opacity = '0';
@@ -119,7 +110,7 @@ function updateButtonState(btn, isPanelOpen) {
   }
 }
 
-// Function to cleanup panel
+// Function to cleanup panel (Keep as is)
 function cleanupPanel(panel) {
   // Remove event listeners
   const closeButton = panel.querySelector('.close-button');
@@ -136,7 +127,7 @@ function cleanupPanel(panel) {
   }, 400); // Match this with your CSS transition duration
 }
 
-// Function to toggle panel
+// Function to toggle panel (Keep as is)
 function togglePanel() {
   const panel = document.getElementById('ccf-side-panel');
   const floatingButton = document.getElementById('ccf-floating-btn');
@@ -154,7 +145,7 @@ function togglePanel() {
   }
 }
 
-// Function to inject side panel
+// Function to inject side panel (Keep as is, though opening is handled by background.js now)
 function injectSidePanel() {
   if (!document.getElementById('ccf-side-panel')) {
     const panel = document.createElement('div');
@@ -207,4 +198,4 @@ function injectSidePanel() {
   } else {
     togglePanel();
   }
-} 
+}

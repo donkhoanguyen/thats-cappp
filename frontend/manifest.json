@@ -1,11 +1,17 @@
 {
   "manifest_version": 3,
   "name": "WYS",
-  "version": "0.1",
+  "version": "1.0",
   "description": "Finds and lists key concepts from the current page in a side panel.",
   "permissions": [
     "scripting",
-    "activeTab"
+    "activeTab",
+    "storage",
+    "microphone",
+    "sidePanel"
+  ],
+  "host_permissions": [
+    "ws://localhost:8000/*"
   ],
   "background": {
     "service_worker": "background/background.js"
@@ -30,14 +36,21 @@
   "action": {
     "default_title": "Show Concepts"
   },
+  "side_panel": {
+    "default_path": "components/sidepanel/sidepanel.html"
+  },
   "web_accessible_resources": [
     {
       "resources": [
         "icons/pplx_logo.png",
         "components/sidepanel/sidepanel.html",
+        "components/sidepanel/sidepanel.css", 
+        "components/sidepanel/sidepanel.js", 
         "components/popup/popup.html",
         "components/popup/popup.js",
-        "components/floating-button/floating-button.js"
+        "components/popup/popup.css",         
+        "components/floating-button/floating-button.js",
+        "components/floating-button/floating-button.css" 
       ],
       "matches": ["<all_urls>"]
     }
