@@ -8,7 +8,8 @@
     "activeTab",
     "storage",
     "microphone",
-    "sidePanel"
+    "sidePanel",
+    "offscreen"
   ],
   "host_permissions": [
     "ws://localhost:8000/*"
@@ -50,7 +51,11 @@
         "components/popup/popup.js",
         "components/popup/popup.css",         
         "components/floating-button/floating-button.js",
-        "components/floating-button/floating-button.css" 
+        "components/floating-button/floating-button.css",
+        "offscreen.html",
+        "offscreen.js",
+        "mic_permission.html",
+        "mic_permission.js"
       ],
       "matches": ["<all_urls>"]
     }

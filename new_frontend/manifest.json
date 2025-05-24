@@ -1,8 +1,17 @@
 {
   "manifest_version": 3,
-  "name": "That's Cappp",
+  "name": "Audio Streamer",
   "version": "1.0",
-  "description": "A Chrome extension for That's Cappp",
+  "description": "Streams microphone audio to a FastAPI server in chunks.",
+  "permissions": [
+    "activeTab",
+    "microphone",
+    "storage",
+    "offscreen"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -11,16 +20,12 @@
       "128": "icons/icon128.png"
     }
   },
-  "permissions": [
-    "storage",
-    "activeTab"
-  ],
-  "background": {
-    "service_worker": "background.js"
-  },
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  }
-} 
+  },
+  "host_permissions": [
+    "ws://localhost:8000/*"
+  ]
+}

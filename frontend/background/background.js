@@ -6,15 +6,45 @@ const AUDIO_CHANNELS = 1;        // Mono audio
 const RECORD_DURATION = 35;    // seconds to record audio for each segment
 const SCHEDULE_INTERVAL = 30;  // seconds between the START of each new recording
 
-let audioContext = null;
-let mediaStreamSource = null;
-let scriptProcessor = null;
+// Offscreen document configuration
+const OFFSCREEN_DOCUMENT_PATH = 'offscreen.html';
+const MIC_HELPER_PATH = 'mic_permission.html';
+
+// Global state variables
 let websocket = null;
 let isListening = false;
-let currentSegmentBuffer = [];
-let samplesReadForCurrentSegment = 0; // Track samples for current segment
 let segmentIdCounter = 0;
 let recordingIntervalId; // To store the interval for scheduling segments
+let micHelperWindowId = null;
+
+// --- Offscreen Document Management ---
+async function hasOffscreenDocument() {
+    const offscreenUrl = chrome.runtime.getURL(OFFSCREEN_DOCUMENT_PATH);
+    const existingContexts = await chrome.runtime.getContexts({
+        contextTypes: ['OFFSCREEN_DOCUMENT'],
+        documentUrls: [offscreenUrl]
+    });
+    return existingContexts.length > 0;
+}
+
+async function closeOldOffscreenDocument() {
+    if (await hasOffscreenDocument()) {
+        console.log('[Background] Closing existing offscreen document.');
+        await chrome.offscreen.closeDocument();
+        console.log('[Background] Existing offscreen document closed.');
+    }
+}
+
+async function createOffscreenDocumentForAudio() {
+    await closeOldOffscreenDocument(); 
+    console.log('[Background] Creating new offscreen document for audio capture...');
+    await chrome.offscreen.createDocument({
+        url: OFFSCREEN_DOCUMENT_PATH,
+        reasons: ['USER_MEDIA', 'AUDIO_PLAYBACK'], // AUDIO_PLAYBACK might be needed if offscreen plays audio/uses AudioContext
+        justification: 'Microphone access and audio processing for transcription.',
+    });
+    console.log('[Background] New offscreen document creation initiated.');
+}
 
 // Function to convert Float32Array to Int16Array
 function convertFloat32ToInt16(buffer) {
@@ -26,247 +56,206 @@ function convertFloat32ToInt16(buffer) {
     return buf.buffer; // Return as ArrayBuffer
 }
 
-async function initializeAudioStream() {
-    if (audioContext && audioContext.state === 'running') {
-        console.log("Audio stream already initialized.");
-        return;
-    }
+// This is the function that will now be called after mic helper confirms permission
+async function proceedWithOffscreenAudioInit() {
+    console.log('[Background] Mic helper confirmed permission. Adding delay before offscreen audio init...');
+    await new Promise(resolve => setTimeout(resolve, 1000)); // 1-second delay
+    console.log('[Background] Proceeding with offscreen audio init after delay...');
+    return new Promise(async (resolve, reject) => {
+        const timeout = setTimeout(() => {
+            console.error('[Background] Timeout waiting for offscreen audio response (after mic helper).');
+            chrome.runtime.onMessage.removeListener(offscreenAudioResponseListener);
+            reject(new Error('Timeout waiting for offscreen audio response.'));
+        }, 15000);
 
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-                sampleRate: AUDIO_SAMPLERATE,
-                channelCount: AUDIO_CHANNELS,
-                // Add constraints for desired quality/format if needed
+        const offscreenAudioResponseListener = (message, sender) => {
+            if (sender.id !== chrome.runtime.id || !message.type || !message.type.startsWith('offscreen-audio')) {
+                return false; 
             }
-        });
-
-        audioContext = new AudioContext({ sampleRate: AUDIO_SAMPLERATE });
-        mediaStreamSource = audioContext.createMediaStreamSource(stream);
-
-        const bufferSize = 4096;
-        scriptProcessor = audioContext.createScriptProcessor(bufferSize, AUDIO_CHANNELS, AUDIO_CHANNELS);
-
-        scriptProcessor.onaudioprocess = (event) => {
-            if (!isListening) return;
-
-            const inputBuffer = event.inputBuffer.getChannelData(0); // Get mono data
-            currentSegmentBuffer.push(new Float32Array(inputBuffer)); // Push a copy
-            samplesReadForCurrentSegment += inputBuffer.length;
+            if (message.type === 'offscreen-audio-ready') {
+                console.log('[Background] Received offscreen-audio-ready signal.');
+                clearTimeout(timeout);
+                chrome.runtime.onMessage.removeListener(offscreenAudioResponseListener);
+                resolve(message.data); 
+            } else if (message.type === 'offscreen-audio-error') {
+                console.error('[Background] Received offscreen-audio-error signal from offscreen.js:', message.error);
+                clearTimeout(timeout);
+                chrome.runtime.onMessage.removeListener(offscreenAudioResponseListener);
+                reject(new Error(`Offscreen audio error: ${message.error}`));
+            }
         };
+        chrome.runtime.onMessage.addListener(offscreenAudioResponseListener);
 
-        mediaStreamSource.connect(scriptProcessor);
-        scriptProcessor.connect(audioContext.destination); // Connect to destination to start processing (silent)
-
-        console.log("Audio stream initialized and processing.");
-    } catch (error) {
-        console.error("Error initializing audio stream:", error);
-        chrome.runtime.sendMessage({ action: "updateStatus", message: `Error initializing audio: ${error.message}` });
-        stopListening();
-        throw error; // Re-throw to propagate error to caller
-    }
+        try {
+            await createOffscreenDocumentForAudio(); // Create offscreen doc
+            // Offscreen.js will attempt getUserMedia on its own load now that global perm is hopefully set
+            console.log('[Background] Offscreen document creation requested. Waiting for its audio status (after mic helper)...');
+        } catch (error) {
+            console.error('[Background] Error during createOffscreenDocumentForAudio (after mic helper):', error);
+            clearTimeout(timeout);
+            chrome.runtime.onMessage.removeListener(offscreenAudioResponseListener);
+            reject(error);
+        }
+    });
 }
 
+async function launchMicPermissionHelper() {
+    return new Promise((resolve, reject) => {
+        const helperUrl = chrome.runtime.getURL(MIC_HELPER_PATH);
+        chrome.windows.create({
+            url: helperUrl,
+            type: 'popup',
+            width: 400,
+            height: 200,
+            focused: true // Try to focus it to ensure prompt is visible
+        }, (newWindow) => {
+            if (chrome.runtime.lastError || !newWindow) {
+                console.error("[Background] Error creating mic helper window:", chrome.runtime.lastError?.message);
+                return reject(new Error(chrome.runtime.lastError?.message || "Failed to create mic helper window."));
+            }
+            micHelperWindowId = newWindow.id;
+            console.log("[Background] Mic helper window created with ID:", micHelperWindowId);
+            
+            const micHelperListener = (message, sender) => {
+                if (sender.id !== chrome.runtime.id) return false; // Only messages from our extension
+
+                if (message.type === 'mic-helper-permission-confirmed') {
+                    console.log("[Background] Mic helper confirmed permission.");
+                    chrome.runtime.onMessage.removeListener(micHelperListener);
+                    if (micHelperWindowId) try { chrome.windows.remove(micHelperWindowId); } catch(e){} finally { micHelperWindowId = null; }
+                    resolve();
+                } else if (message.type === 'mic-helper-permission-denied') {
+                    console.error("[Background] Mic helper denied permission:", message.error);
+                    chrome.runtime.onMessage.removeListener(micHelperListener);
+                    if (micHelperWindowId) try { chrome.windows.remove(micHelperWindowId); } catch(e){} finally { micHelperWindowId = null; }
+                    reject(new Error(`Mic permission denied by helper: ${message.error}`));
+                }
+            };
+            chrome.runtime.onMessage.addListener(micHelperListener);
+        });
+    });
+}
 
 async function startAudioRecordingAndStreaming() {
     if (isListening) {
-        console.log("Already listening.");
+        console.log("[Background] Already listening.");
         return;
     }
-
+    console.log("[Background] Attempting to start audio recording and streaming (with mic helper)...");
     try {
-        // Initialize audio stream first
-        await initializeAudioStream();
+        await launchMicPermissionHelper(); // Step 1: Get permission via visible helper
+        const offscreenData = await proceedWithOffscreenAudioInit(); // Step 2: Init offscreen audio
+        
+        console.log("[Background] Audio stream via offscreen reported as ready. Data:", offscreenData);
+        isListening = true;
+        chrome.runtime.sendMessage({ action: "updateStatus", message: "Microphone active. Processing..." });
 
-        websocket = new WebSocket(START_LISTENING_ENDPOINT);
-
-        websocket.onopen = (event) => {
-            console.log("WebSocket connected:", event);
-            isListening = true;
-            chrome.runtime.sendMessage({ action: "updateStatus", message: "Connected to server. Starting audio stream..." });
-            startRecordingScheduler(); // Start scheduling segments
-        };
-
-        websocket.onmessage = (event) => {
-            console.log("Message from server:", event.data);
-            // Send the transcription result to the side panel
-            chrome.runtime.sendMessage({
-                action: "displayTranscription",
-                transcription: event.data
-            });
-        };
-
-        websocket.onerror = (event) => {
-            console.error("WebSocket error:", event);
-            chrome.runtime.sendMessage({ action: "updateStatus", message: `WebSocket error: ${event.message}` });
-            stopListening();
-        };
-
-        websocket.onclose = (event) => {
-            console.log("WebSocket closed:", event);
-            isListening = false;
-            chrome.runtime.sendMessage({ action: "updateStatus", message: "Disconnected from server." });
-            stopListening(); // Clean up audio resources
-        };
+        chrome.runtime.sendMessage({
+            target: 'offscreen',
+            type: 'start-processing-audio',
+            data: { 
+                 audioSampleRate: AUDIO_SAMPLERATE, 
+                 audioChannels: AUDIO_CHANNELS,
+                 serverUrl: START_LISTENING_ENDPOINT
+            }
+        });
+        console.log("[Background] Sent 'start-processing-audio' to offscreen document.");
 
     } catch (error) {
-        console.error("Error connecting to WebSocket or initializing audio:", error);
-        chrome.runtime.sendMessage({ action: "updateStatus", message: `Error starting: ${error.message}` });
-        stopListening();
+        const errorMessage = (error && typeof error === 'object' && error.message) ? error.message : String(error);
+        console.error("[Background] Error in startAudioRecordingAndStreaming (with mic helper):", errorMessage);
+        chrome.runtime.sendMessage({ action: "updateStatus", message: `Error starting: ${errorMessage}` });
+        stopListening(); 
     }
 }
-
-async function startRecordingScheduler() {
-    // Clear any existing scheduler to prevent duplicates
-    if (recordingIntervalId) {
-        clearInterval(recordingIntervalId);
-    }
-
-    segmentIdCounter = 0;
-
-    // Send the first segment immediately upon starting the scheduler
-    // The onaudioprocess will already be buffering, so we send what we have.
-    // This assumes some audio has been buffered since `initializeAudioStream` was called.
-    segmentIdCounter++;
-    sendCurrentSegment(segmentIdCounter);
-
-
-    // Schedule subsequent segments
-    recordingIntervalId = setInterval(() => {
-        if (isListening) { // Only schedule if still listening
-            segmentIdCounter++;
-            sendCurrentSegment(segmentIdCounter);
-        } else {
-            clearInterval(recordingIntervalId); // Stop scheduling if not listening
-        }
-    }, SCHEDULE_INTERVAL * 1000); // Convert seconds to milliseconds
-}
-
-function sendCurrentSegment(segmentId) {
-    console.log(`--- Segment ${segmentId} ---`);
-    chrome.runtime.sendMessage({ action: "updateStatus", message: `Processing segment ${segmentId}...` });
-
-    if (!isListening) {
-        console.log(`Client stopping during sending of segment ${segmentId}.`);
-        return;
-    }
-
-    if (currentSegmentBuffer.length > 0) {
-        // Concatenate all Float32Array chunks into a single Float32Array
-        // We need to re-calculate total samples based on what was actually buffered
-        let totalSamplesInCurrentBuffer = 0;
-        for (const buffer of currentSegmentBuffer) {
-            totalSamplesInCurrentBuffer += buffer.length;
-        }
-
-        const fullAudioSegmentFloat32 = new Float32Array(totalSamplesInCurrentBuffer);
-        let offset = 0;
-        for (const buffer of currentSegmentBuffer) {
-            fullAudioSegmentFloat32.set(buffer, offset);
-            offset += buffer.length;
-        }
-
-        // Convert to Int16Array and then to ArrayBuffer
-        const audioBytesToSend = convertFloat32ToInt16(fullAudioSegmentFloat32);
-
-        console.log(`Sending ${audioBytesToSend.byteLength} bytes for segment ${segmentId}. (Expected ~${AUDIO_SAMPLERATE * RECORD_DURATION * 2} bytes)`); // Expected bytes for 16-bit mono
-        if (websocket && websocket.readyState === WebSocket.OPEN) {
-            websocket.send(audioBytesToSend);
-            console.log(`Segment ${segmentId} sent.`);
-            chrome.runtime.sendMessage({ action: "updateStatus", message: `Segment ${segmentId} sent.` });
-        } else {
-            console.warn(`WebSocket not open to send segment ${segmentId}.`);
-            chrome.runtime.sendMessage({ action: "updateStatus", message: `WebSocket not ready for segment ${segmentId}.` });
-        }
-    } else {
-        console.log(`No audio recorded for segment ${segmentId}.`);
-        chrome.runtime.sendMessage({ action: "updateStatus", message: `No audio recorded for segment ${segmentId}.` });
-    }
-
-    // Reset buffer for the next segment
-    currentSegmentBuffer = [];
-    samplesReadForCurrentSegment = 0;
-}
-
 
 function stopListening() {
-    if (!isListening) return;
-
+    console.log("[Background] stopListening called.");
+    if (!isListening && !globalThis.offscreenIsActive) { 
+        console.log("[Background] Not currently listening or offscreen known to be inactive.");
+    }
     isListening = false;
-    clearInterval(recordingIntervalId); // Stop the scheduling
+    globalThis.offscreenIsActive = false; 
 
-    // Close WebSocket
-    if (websocket && websocket.readyState === WebSocket.OPEN) {
-        websocket.close();
+    chrome.runtime.sendMessage({ target: 'offscreen', type: 'stop-processing-audio' });
+    console.log("[Background] Sent 'stop-processing-audio' to offscreen document.");
+    
+    if (micHelperWindowId) {
+        try { chrome.windows.remove(micHelperWindowId); } catch(e){ console.warn("Error removing mic helper window during stop:", e.message); } 
+        finally { micHelperWindowId = null; }
     }
-    websocket = null;
+    // closeOldOffscreenDocument(); // Consider policy for closing offscreen
 
-    // Clean up Web Audio API resources
-    if (scriptProcessor) {
-        scriptProcessor.disconnect();
-        scriptProcessor = null;
-    }
-    if (mediaStreamSource && mediaStreamSource.mediaStream) {
-        mediaStreamSource.mediaStream.getTracks().forEach(track => track.stop()); // Stop all tracks on the stream
-        mediaStreamSource = null;
-    }
-    if (audioContext) {
-        audioContext.close().then(() => {
-            console.log("AudioContext closed.");
-            audioContext = null;
-        }).catch(e => console.error("Error closing AudioContext:", e));
-    }
-
-    // Clear any remaining buffered audio
-    currentSegmentBuffer = [];
-    samplesReadForCurrentSegment = 0;
-
-    console.log("Listening stopped and resources cleaned up.");
-    chrome.runtime.sendMessage({ action: "listeningStopped" }); // Notify popup
+    chrome.runtime.sendMessage({ action: "listeningStopped" }); 
     chrome.runtime.sendMessage({ action: "updateStatus", message: "Listening stopped." });
 }
 
 // Listen for messages from the popup or other parts of the extension
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === "startListening") {
-        console.log("Received startListening command from popup.");
-        // Open the side panel first
-        try {
-            chrome.sidePanel.open({ windowId: sender.tab.windowId });
-            // Then start the audio recording
-            startAudioRecordingAndStreaming();
-        } catch (error) {
-            console.error("Error opening side panel:", error);
-        }
-    } else if (request.action === "stopListening") {
-        console.log("Received stopListening command.");
-        stopListening();
-    } else if (request.action === "open_side_panel") {
-        try {
-            chrome.sidePanel.open({ windowId: sender.tab.windowId });
-            if (request.content) {
-                chrome.runtime.sendMessage({
-                    action: 'displayTranscription',
-                    transcription: request.content
-                });
-            }
-        } catch (error) {
-            console.error('Error opening side panel:', error);
-        }
+    // Basic filtering for sender
+    if (sender.id !== chrome.runtime.id && !sender.tab) {
+      // Allow messages from web pages (sender.tab will exist) 
+      // or from our own extension contexts (sender.id === chrome.runtime.id)
+      console.warn("[Background] Ignoring message from unexpected source:", sender);
+      return false; 
     }
+
+    console.log('[Background] Received message:', request, 'from sender context:', sender.url || sender.id);
+
+    if (request.action === "startListening") {
+        console.log("[Background] 'startListening' action identified.");
+        if (!sender.tab || typeof sender.tab.windowId === 'undefined') {
+            console.error("[Background] 'startListening' message from invalid context or missing windowId.");
+            sendResponse({success: false, error: "Invalid sender context for startListening"});
+            return true; 
+        }
+        console.log(`[Background] Attempting to open side panel for windowId: ${sender.tab.windowId}`);
+        try {
+            chrome.sidePanel.open({ windowId: sender.tab.windowId });
+            console.log("[Background] Side panel open initiated.");
+            startAudioRecordingAndStreaming(); // This now calls the flow with the mic helper
+            sendResponse({success: true, message: "Listening process initiated with mic helper."});
+        } catch (error) {
+            const errMsg = error && typeof error === 'object' && error.message ? error.message : String(error);
+            console.error("[Background] Error in startListening flow:", errMsg);
+            sendResponse({success: false, error: errMsg});
+        }
+        return true;
+    } else if (request.action === "stopListening") {
+        console.log("[Background] 'stopListening' action received.");
+        stopListening();
+        sendResponse({success: true, message: "Stop listening processed."});
+        return true;
+    } else if (request.type && (request.type.startsWith('offscreen-audio') || request.type.startsWith('mic-helper'))) {
+        // These should be caught by dedicated listeners, but log if they reach here.
+        console.log(`[Background] Main onMessage: Received ${request.type}. Data/Error:`, request.data || request.error);
+    } else if (request.type === 'offscreen-transcription') {
+        console.log('[Background] Received transcription from offscreen:', request.transcription);
+        chrome.runtime.sendMessage({ action: "displayTranscription", transcription: request.transcription });
+    } else if (request.type === 'offscreen-statusUpdate') {
+        console.log('[Background] Status update from offscreen:', request.message);
+        chrome.runtime.sendMessage({ action: "updateStatus", message: request.message });
+    }
+    // Return true if sendResponse might be called for this specific message type by this listener.
+    // Default to false if the message is handled by other more specific listeners (like for offscreen/mic-helper promises).
+    if (request.action === "startListening" || request.action === "stopListening") return true;
+    return false; 
 });
+
+console.log("[Background] Service worker script loaded (mic helper version).");
 
 // Set up the side panel on extension installation or update
 chrome.runtime.onInstalled.addListener(() => {
     chrome.sidePanel.setOptions({
         enabled: true,
         path: 'components/sidepanel/sidepanel.html'
-    });
+    }).catch(error => console.error("[Background] Error setting side panel options:", error));
+    console.log("[Background] Side panel options set on install/update.");
 });
 
 // Handle extension context invalidation
 chrome.runtime.onSuspend.addListener(() => {
-    console.log('Extension context is being suspended');
-    // Ensure all resources are cleaned up if the service worker is suspended
-    stopListening();
+    console.log('[Background] Extension context is being suspended. Cleaning up.');
+    if (micHelperWindowId) { try { chrome.windows.remove(micHelperWindowId); } catch(e){} }
+    closeOldOffscreenDocument();
 });

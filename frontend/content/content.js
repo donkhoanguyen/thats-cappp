@@ -1,30 +1,44 @@
 // Initialize the floating button
 async function initializeFloatingButton() {
   try {
+    console.log('[ContentJS] Initializing floating button...'); // <-- ADD THIS
     const module = await import(chrome.runtime.getURL('components/floating-button/floating-button.js'));
     const floatingButton = module.createFloatingButton();
     if (floatingButton) {
       document.body.appendChild(floatingButton);
+      console.log('[ContentJS] Floating button appended to body.'); // <-- ADD THIS
       
       // Add click handler for the floating button
       floatingButton.addEventListener('click', async (e) => {
+        console.log('[ContentJS] Floating button clicked.'); // <-- ADD THIS
         // Only trigger click if we're in the main button area (first 50px)
         const rect = floatingButton.getBoundingClientRect();
         if (e.clientX <= rect.left + 50) {
+          console.log('[ContentJS] Main area of floating button clicked, attempting to show popup.'); // <-- ADD THIS
           // Show popup
-          const popupModule = await import(chrome.runtime.getURL('components/popup/popup.js'));
-          const popup = new popupModule.Popup();
-          
-          // Removed: popup.setOnSubmit() is no longer a function
-          // popup.setOnSubmit(async (query) => {
-          //   // Show side panel - This logic is now handled by popup.js when
-          //   // "startListening" is triggered, by sending a message to background.js
-          //   // which then opens the side panel.
-          //   injectSidePanel();
-          // });
-          
-          // Initialize and show popup
-          await popup.initialize(floatingButton);
+          try {
+            // Show popup
+            console.log('[ContentJS] Attempting to get chrome object:', chrome);
+            console.log('[ContentJS] Attempting to get chrome.runtime object:', chrome.runtime);
+            const popupModule = await import(chrome.runtime.getURL('components/popup/popup.js'));
+            console.log('[ContentJS] Popup module imported:', popupModule); // <-- ADD THIS
+            const popup = new popupModule.Popup();
+            console.log('[ContentJS] Popup instance created:', popup); // <-- ADD THIS
+            
+            // Removed: popup.setOnSubmit() is no longer a function
+            // popup.setOnSubmit(async (query) => {
+            //   // Show side panel - This logic is now handled by popup.js when
+            //   // "startListening" is triggered, by sending a message to background.js
+            //   // which then opens the side panel.
+            //   injectSidePanel();
+            // });
+            
+            // Initialize and show popup
+            await popup.initialize(floatingButton);
+            console.log('[ContentJS] Popup initialize called.'); // <-- ADD THIS
+          } catch (error) {
+            console.error('[ContentJS] Error importing or initializing popup:', error); // <-- ADD THIS
+          }
         }
       });
     }

@@ -1,16 +1,21 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>That's Cappp</title>
-  <link rel="stylesheet" href="styles.css">
+  <title>Audio Streamer</title>
+  <style>
+    body { font-family: sans-serif; padding: 10px; width: 200px; }
+    button { width: 100%; padding: 10px; margin-bottom: 5px; }
+    #status { margin-top: 10px; font-weight: bold; }
+    #serverStatus { margin-top: 5px; font-size: 0.9em; color: grey; }
+  </style>
 </head>
 <body>
-  <div class="container">
-    <h1>That's Cappp</h1>
-    <div id="content">
-      <!-- Content will be dynamically added here -->
-    </div>
-  </div>
+  <h2>Audio Streamer</h2>
+  <button id="startButton">Start Streaming</button>
+  <button id="stopButton">Stop Streaming</button>
+  <div id="status">Status: Idle</div>
+  <div id="serverStatus">Server: Disconnected</div>
+
   <script src="popup.js"></script>
 </body>
-</html> 
+</html>

@@ -23,6 +23,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 export class Popup {
   constructor() {
+    console.log('[PopupJS] Constructor called.'); // <-- ADD THIS
     this.popup = null;
     // Updated to match the elements for the listening feature
     this.startListeningButton = null;
@@ -39,6 +40,7 @@ export class Popup {
 
   // Initialize the popup
   async initialize(floatingButton) {
+    console.log('[PopupJS] Initialize method called.'); // <-- ADD THIS
     this.floatingButton = floatingButton;
     
     if (!document.getElementById('ccf-popup')) {
@@ -47,9 +49,11 @@ export class Popup {
       this.popup.className = 'popup-container'; // Ensure your popup.html has this container class
       
       try {
+        console.log('[PopupJS] Fetching popup.html...'); // <-- ADD THIS
         // Fetch the popup.html content
         const response = await fetch(chrome.runtime.getURL('components/popup/popup.html'));
         const html = await response.text();
+        console.log('[PopupJS] popup.html fetched.'); // <-- ADD THIS
         
         // Create a temporary container to parse the HTML
         const tempDiv = document.createElement('div');
@@ -68,6 +72,7 @@ export class Popup {
         }
         
         document.body.appendChild(this.popup);
+        console.log('[PopupJS] Popup element appended to body.'); // <-- ADD THIS
           
         // Initialize elements specific to the listening functionality
         this.startListeningButton = this.popup.querySelector('#startListeningButton'); // Use ID selector
@@ -76,8 +81,10 @@ export class Popup {
         
         // Initialize other existing popup elements if they are still relevant
         this.closeButton = this.popup.querySelector('.close-button'); // Assuming you keep this
-        // this.inputField = this.popup.querySelector('.popup-input'); // If you still have a separate input field
-        // this.submitButton = this.popup.querySelector('.submit-button'); // If you still have a separate submit button
+
+        console.log('[PopupJS] startListeningButton element:', this.startListeningButton); // <-- ADD THIS
+        console.log('[PopupJS] queryInput element:', this.queryInput); // <-- ADD THIS
+        console.log('[PopupJS] closeButton element:', this.closeButton); // <-- ADD THIS
           
         // Set up event listeners (including the new listening button)
         this.setupEventListeners();
@@ -89,7 +96,7 @@ export class Popup {
         this.show();
         
       } catch (error) {
-        console.error('Error loading popup:', error);
+        console.error('[PopupJS] Error loading popup HTML or setting up elements:', error); // <-- ADD THIS
       }
     }
   }
@@ -106,54 +113,75 @@ export class Popup {
 
   // Set up event listeners
   setupEventListeners() {
+    console.log('[PopupJS] setupEventListeners called.'); // <-- ADD THIS
     if (this.closeButton) {
       this.closeButton.onclick = () => this.hide();
     }
 
     // --- NEW LISTENING LOGIC HERE ---
     if (this.startListeningButton) {
+      console.log('[PopupJS] Attaching click listener to startListeningButton.');
       this.startListeningButton.addEventListener('click', async () => {
+        console.log('[PopupJS] Start Listening button clicked.');
         if (this.statusMessage) {
-          this.statusMessage.textContent = 'Requesting microphone access...';
+          // Optional: Update status to indicate process is starting
+          this.statusMessage.textContent = 'Initiating listening process...'; 
         }
         
         try {
-          // First, request microphone permission
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          // Stop the stream immediately after getting permission, as the background script will manage the actual stream
-          stream.getTracks().forEach(track => track.stop()); 
+          // REMOVE getUserMedia call from popup.js
+          // console.log('[PopupJS] Requesting microphone permission...');
+          // const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          // console.log('[PopupJS] Microphone permission granted.');
+          // stream.getTracks().forEach(track => track.stop()); 
 
-          if (this.statusMessage) {
-            this.statusMessage.textContent = 'Microphone access granted. Starting listening...';
-          }
+          // if (this.statusMessage) {
+          //   this.statusMessage.textContent = 'Microphone access granted. Preparing to start...';
+          // }
           
-          // Get the current window ID
-          const currentWindow = await chrome.windows.getCurrent();
-          
-          // Send a message to the background script to start the listening process
-          chrome.runtime.sendMessage({ 
+          const messagePayload = { 
             action: "startListening",
-            query: this.queryInput ? this.queryInput.value : "", // Send any initial query if input exists
-            windowId: currentWindow.id
+            query: this.queryInput ? this.queryInput.value : ""
+          };
+          console.log('[PopupJS] Sending message to background:', messagePayload); 
+          
+          chrome.runtime.sendMessage(messagePayload, function(response) {
+            if (chrome.runtime.lastError) {
+                console.error('[PopupJS] sendMessage Lasterror:', chrome.runtime.lastError.message); 
+            } else {
+                console.log('[PopupJS] Message sent, response from background:', response); 
+                if (response && response.success) {
+                    // Optionally update popup UI based on successful initiation
+                    // if (this.statusMessage) this.statusMessage.textContent = response.message;
+                } else if (response && !response.success) {
+                    if (this.statusMessage) this.statusMessage.textContent = `Error: ${response.error}`;
+                    // Re-enable button if start failed and was due to a recoverable error handled by background
+                    if (this.startListeningButton) this.startListeningButton.disabled = false;
+                }
+            }
           });
 
+          // Disable button immediately assuming background will handle it
+          // Re-enable on error if necessary, based on response from background
           if (this.startListeningButton) {
-            this.startListeningButton.disabled = true; // Disable button after starting
+            this.startListeningButton.disabled = true;
           }
-          if (this.statusMessage) {
-            this.statusMessage.textContent = 'Listening started. Check side panel.';
-          }
-
-          // Hide the popup
-          this.hide();
+          // Do not hide the popup immediately. Hide it based on successful response or specific UX choice.
+          // this.hide(); 
 
         } catch (error) {
+          // This catch block is now less likely to catch getUserMedia errors as it's removed
+          console.error('[PopupJS] Error in startListeningButton click handler (setup phase):', error.name, error.message); 
           if (this.statusMessage) {
-            this.statusMessage.textContent = `Error: ${error.message}. Please allow microphone access.`;
+            this.statusMessage.textContent = `Error: ${error.message}.`;
           }
-          console.error('Error getting microphone access:', error);
+           if (this.startListeningButton) { // Re-enable button on local error
+            this.startListeningButton.disabled = false;
+          }
         }
       });
+    } else {
+      console.warn('[PopupJS] startListeningButton not found, cannot attach listener.');
     }
 
     // --- Original submit button logic (if still needed, re-add here) ---

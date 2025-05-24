@@ -4,6 +4,7 @@ import asyncio
 import json
 from typing import AsyncGenerator
 import logging
+from starlette.websockets import WebSocketDisconnect, WebSocketState
 from src.transcription.transcriber import Transcriber
 from src.claim_extraction.gpt_extractor import ClaimExtractor
 from src.fact_checking.fact_checker import FactChecker
@@ -55,10 +56,13 @@ async def websocket_endpoint(websocket: WebSocket):
             
             chunk_idx += 1
             
+    except WebSocketDisconnect:
+        logging.info(f"Client disconnected from /ws/start-listening. WebSocket state: {websocket.client_state}")
     except Exception as e:
-        logging.error(f"WebSocket error: {str(e)}")
+        logging.error(f"WebSocket error in /ws/start-listening: {e}", exc_info=True)
     finally:
-        await websocket.close()
+        if websocket.client_state == WebSocketState.CONNECTED:
+            await websocket.close()
 
 @app.websocket("/ws/stop-listening")
 async def stop_listening_endpoint(websocket: WebSocket):
@@ -87,15 +91,21 @@ async def stop_listening_endpoint(websocket: WebSocket):
                 }))
                 break  # Exit the loop after stopping
                 
+    except WebSocketDisconnect:
+        logging.info(f"Client disconnected from /ws/stop-listening. WebSocket state: {websocket.client_state}")
     except Exception as e:
-        logging.error(f"Stop listening error: {str(e)}")
-        # Send error status
-        await websocket.send_text(json.dumps({
-            "type": "error",
-            "message": str(e)
-        }))
+        logging.error(f"Error in /ws/stop-listening: {e}", exc_info=True)
+        try:
+            # Attempt to send error status only if not a disconnect
+            await websocket.send_text(json.dumps({
+                "type": "error",
+                "message": str(e)
+            }))
+        except Exception as send_exc:
+            logging.error(f"Failed to send error message to client after initial error: {send_exc}")
     finally:
-        await websocket.close()
+        if websocket.client_state == WebSocketState.CONNECTED:
+            await websocket.close()
 
 if __name__ == "__main__":
     import uvicorn
